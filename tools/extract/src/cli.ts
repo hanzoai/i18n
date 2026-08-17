@@ -7,6 +7,7 @@
  *   --code <dir>        where to look; repeat for more than one
  *   --source <dir>      the `--source` directory to fill
  *   --namespace <ns>    for keys written without one (default: shared)
+ *   --call a,b          what the product named its lookup (default: t)
  */
 import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
@@ -23,6 +24,7 @@ const { values } = parseArgs({
     code: { type: 'string', multiple: true },
     source: { type: 'string' },
     namespace: { type: 'string', default: 'shared' },
+    call: { type: 'string', default: 't' },
   },
 })
 
@@ -31,10 +33,11 @@ if (!values.code?.length || !values.source) {
 }
 
 const root = resolve(values.source)
+const calls = values.call.split(',').map((s) => s.trim()).filter(Boolean)
 const found: Key[] = []
 for (const dir of values.code) {
   for await (const path of walk(resolve(dir))) {
-    found.push(...scan(await readFile(path, 'utf8'), values.namespace))
+    found.push(...scan(await readFile(path, 'utf8'), values.namespace, calls))
   }
 }
 

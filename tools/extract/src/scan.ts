@@ -9,23 +9,31 @@ export interface Key {
 
 export type Strings = Record<string, string>
 
+const TRANS = /i18nKey\s*=\s*['"]([^'"\n]+)['"]/g
+
 /**
  * `t('swap.title')` and `t('swap.title', 'Swap')`, plus `<Trans i18nKey="…">`.
  *
- * `\bt\(` is the whole trick and it is deliberately narrow: it catches `t(`,
- * `i18n.t(` and `this.t(` because a word boundary sits before each, and it
+ * The word boundary is the whole trick and it is deliberately narrow: it catches
+ * `t(`, `i18n.t(` and `this.t(` because a boundary sits before each, and it
  * declines `split(`, `at(` and `format(` because none of them do.
+ *
+ * `calls` is a list because `useT()` returns a function the product binds under
+ * whatever name it likes — `t` by convention, `localize` in an app that wrapped
+ * it. The name of a local binding is the product's business; the key is the part
+ * that belongs to everyone.
  *
  * A key built at runtime — `t(\`nav.${section}\`)` — is not here and cannot be.
  * Nothing static can know what `section` holds, so those keys belong in the
  * source file by hand.
  */
-const CALL = /\bt\(\s*['"]([^'"\n]+)['"](?:\s*,\s*['"]([^'"\n]*)['"])?/g
-const TRANS = /i18nKey\s*=\s*['"]([^'"\n]+)['"]/g
-
-export function scan(code: string, fallback: string): Key[] {
+export function scan(code: string, fallback: string, calls: readonly string[] = ['t']): Key[] {
+  const call = new RegExp(
+    `\\b(?:${calls.join('|')})\\(\\s*['"]([^'"\\n]+)['"](?:\\s*,\\s*['"]([^'"\\n]*)['"])?`,
+    'g',
+  )
   const found: Key[] = []
-  for (const [, key, english] of code.matchAll(CALL)) {
+  for (const [, key, english] of code.matchAll(call)) {
     found.push(split(key, fallback, english))
   }
   for (const [, key] of code.matchAll(TRANS)) {
