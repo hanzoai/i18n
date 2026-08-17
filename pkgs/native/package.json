@@ -2,6 +2,7 @@
   "name": "@hanzo/i18n-native",
   "version": "0.1.0",
   "license": "BSD-3-Clause",
+  "type": "module",
   "main": "src/index.ts",
   "types": "src/index.ts",
   "sideEffects": false,
@@ -17,7 +18,6 @@
     }
   },
   "scripts": {
-    "build": "tsc",
     "lint": "eslint src",
     "test": "node --test --experimental-strip-types test/*.ts",
     "typecheck": "tsc --noEmit"

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import { resolve } from '../../core/src/index.ts'
+import { resolve } from '@hanzo/i18n'
 import { detect, locales } from '../src/index.ts'
 
 test('a device preference becomes a locale we ship', () => {
