@@ -73,10 +73,41 @@ async function* walk(dir: string): AsyncGenerator<string> {
   }
 }
 
-async function read(path: string): Promise<Strings> {
+/**
+ * The strings in `text`, or a failure that says WHICH file and where.
+ *
+ * A bare `JSON.parse` throws "Expected double-quoted property name at position
+ * 106", which is true and useless to the person who has to fix it: a run walks
+ * fourteen locales across several namespaces, so the one thing the message has
+ * to carry is the path.
+ */
+function parse(text: string, path: string): Strings {
   try {
-    return JSON.parse(await readFile(path, 'utf8')) as Strings
+    return JSON.parse(text) as Strings
+  } catch (err) {
+    throw new Error(`${path}: ${(err as Error).message}`)
+  }
+}
+
+/**
+ * A file's strings, or none when there is no file yet.
+ *
+ * MISSING and BROKEN are different facts and only one of them is safe to read as
+ * empty. What this returns is merged and written back, so answering `{}` for a
+ * file somebody mis-edited replaces every reviewed English string in it with
+ * whatever this run happened to scan — a trailing comma costs the copy, and the
+ * run reports "1 new, 1 total" and exits 0 while doing it.
+ *
+ * So absent is empty and unreadable stops the run, which is the distinction
+ * `validate` already draws ("Unreadable is not absent") and the one this file
+ * was missing.
+ */
+async function read(path: string): Promise<Strings> {
+  let text: string
+  try {
+    text = await readFile(path, 'utf8')
   } catch {
     return {}
   }
+  return parse(text, path)
 }

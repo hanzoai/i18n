@@ -78,6 +78,22 @@ async function under(dir: string): Promise<string[]> {
   return entries.filter((e) => e.isDirectory()).map((e) => e.name)
 }
 
+/**
+ * The strings in `text`, or a failure that says WHICH file and where.
+ *
+ * A bare `JSON.parse` throws "Expected double-quoted property name at position
+ * 106", which is true and useless to the person who has to fix it: a run walks
+ * fourteen locales across several namespaces, so the one thing the message has
+ * to carry is the path.
+ */
+function parse(text: string, path: string): Strings {
+  try {
+    return JSON.parse(text) as Strings
+  } catch (err) {
+    throw new Error(`${path}: ${(err as Error).message}`)
+  }
+}
+
 /** `undefined` for a file that is not there — which the gate reports as its own fact. */
 async function read(path: string): Promise<Strings | undefined> {
   let text: string
@@ -88,5 +104,5 @@ async function read(path: string): Promise<Strings | undefined> {
   }
   // Unreadable is not absent. A file somebody broke while hand-editing must fail
   // the gate rather than read as a locale nobody has started.
-  return JSON.parse(text) as Strings
+  return parse(text, path)
 }

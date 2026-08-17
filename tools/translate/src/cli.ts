@@ -112,10 +112,40 @@ async function under(dir: string): Promise<string[]> {
   return entries.filter((e) => e.isDirectory()).map((e) => e.name)
 }
 
-async function read(path: string): Promise<Strings> {
+/**
+ * The strings in `text`, or a failure that says WHICH file and where.
+ *
+ * A bare `JSON.parse` throws "Expected double-quoted property name at position
+ * 106", which is true and useless to the person who has to fix it: a run walks
+ * fourteen locales across several namespaces, so the one thing the message has
+ * to carry is the path.
+ */
+function parse(text: string, path: string): Strings {
   try {
-    return JSON.parse(await readFile(path, 'utf8')) as Strings
+    return JSON.parse(text) as Strings
+  } catch (err) {
+    throw new Error(`${path}: ${(err as Error).message}`)
+  }
+}
+
+/**
+ * A file's strings, or none when there is no file yet.
+ *
+ * MISSING and BROKEN are different facts and only one is safe to read as empty.
+ * This tool writes `{...existing, ...added}`, so answering `{}` for a file
+ * somebody mis-edited does not merely overwrite the reviewed translations — it
+ * DELETES them, because a key the model refused has no replacement to take its
+ * place. That is the opposite of this tool's one promise, that a reviewer's
+ * correction survives every later run.
+ *
+ * So absent is empty and unreadable stops the run, matching `validate`.
+ */
+async function read(path: string): Promise<Strings> {
+  let text: string
+  try {
+    text = await readFile(path, 'utf8')
   } catch {
     return {}
   }
+  return parse(text, path)
 }
