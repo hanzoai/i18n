@@ -1,4 +1,4 @@
-import { resolve, type SupportedLocale } from '../../core/src/index.ts'
+import { resolve, type SupportedLocale } from '@hanzo/i18n'
 
 /**
  * Which language a phone is set to.
