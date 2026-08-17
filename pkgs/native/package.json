@@ -1,0 +1,29 @@
+{
+  "name": "@hanzo/i18n-native",
+  "version": "0.1.0",
+  "license": "BSD-3-Clause",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "sideEffects": false,
+  "dependencies": {
+    "@hanzo/i18n": "workspace:^"
+  },
+  "peerDependencies": {
+    "react-native": ">=0.71"
+  },
+  "peerDependenciesMeta": {
+    "react-native": {
+      "optional": true
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "lint": "eslint src",
+    "test": "node --test --experimental-strip-types test/*.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "5.9.3"
+  }
+}
