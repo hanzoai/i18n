@@ -41,6 +41,17 @@ test('functions that merely end in t are not translation', () => {
   assert.deepEqual(keys(`i18n.t('a'); this.t('b'); t('c')`), ['shared:a', 'shared:b', 'shared:c'])
 })
 
+test('a product may have named its lookup something else', () => {
+  // useT() returns a function the product binds under whatever name it likes;
+  // hanzo/chat wrapped it as localize and has 2471 calls of it. The binding name
+  // is local, the keys are not.
+  assert.deepEqual(scan(`localize('com_ui_save')`, 'shared', ['localize']).map((k) => k.key), ['com_ui_save'])
+  assert.deepEqual(scan(`t('a')  localize('b')`, 'shared', ['t', 'localize']).map((k) => k.key), ['a', 'b'])
+  // Still a boundary, so a function that merely ends in the name is not it.
+  assert.deepEqual(scan(`unlocalize('x')`, 'shared', ['localize']), [])
+  assert.deepEqual(scan(`localize('a')`, 'shared'), [])
+})
+
 test('a key built at runtime is not extracted', () => {
   // Nothing static can know what `section` holds. Silently emitting the literal
   // part would file a key no screen ever asks for.

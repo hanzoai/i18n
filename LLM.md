@@ -94,7 +94,9 @@ pnpm dlx @hanzo/i18n-validate \
 
 `extract` reads `t('key')`, `t('key', 'English')`, `t('ns:key')` and
 `<Trans i18nKey="key">`. A key built at runtime is not extracted, because nothing
-static can know what it holds — those belong in the source file by hand.
+static can know what it holds — those belong in the source file by hand. Products
+that bound the lookup under another name pass it: `hanzo/chat` calls it
+`localize`, so `--call localize` files its 1377 keys.
 
 `translate` only ever writes keys that are missing, so a reviewer's correction
 survives every later run and a second CI run costs nothing. A translation whose
