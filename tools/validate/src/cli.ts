@@ -1,135 +1,92 @@
-#!/usr/bin/env tsx
+#!/usr/bin/env node
 /**
- * @hanzo/i18n-validate — CI gate for any product's translations.
+ * The gate. Every key in every locale, every slot intact, no product's words
+ * hardcoded in the toolkit's files.
  *
- * Usage (from a product repo):
- *   pnpm dlx @hanzo/i18n-validate \
- *     --source ./translations/source \
- *     --translations ./translations/translations \
- *     --forbid-literal "Lux Wallet,lux.exchange,Zoo Wallet,zoo.exchange"
+ *   i18n-validate --source ./translations/source --translations ./translations/translations \
+ *     --forbid-literal "Lux Wallet,lux.exchange"
  *
- * Exits non-zero on:
- *   - missing key in any locale
- *   - {{slot}} parity mismatch between source and translation
- *   - source string containing a forbidden literal (brand leak detection)
- *
- * The forbid list is provided by the product, not baked into the toolkit.
+ *   --source <dir>          the reviewed English
+ *   --translations <dir>    the other locales
+ *   --namespaces a,b        default: every namespace under --source
+ *   --locales a,b           default: every locale the toolkit ships
+ *   --forbid-literal a,b    strings that must never be written into copy
  */
+import { readFile, readdir } from 'node:fs/promises'
+import { resolve } from 'node:path'
+import { parseArgs } from 'node:util'
+import { SUPPORTED_LOCALES, source, translation } from '@hanzo/i18n'
 
-import { readFile } from 'node:fs/promises'
-import { existsSync } from 'node:fs'
-import { join, resolve } from 'node:path'
-import { readdir } from 'node:fs/promises'
-import { SUPPORTED_LOCALES } from '@hanzo/i18n'
+import { check, line, type Strings } from './check.ts'
 
-interface Args {
-  source: string
-  translations: string
-  locales: string[]
-  forbidLiterals: string[]
-  namespaces?: string[]
+const { values } = parseArgs({
+  options: {
+    source: { type: 'string' },
+    translations: { type: 'string' },
+    namespaces: { type: 'string' },
+    locales: { type: 'string' },
+    'forbid-literal': { type: 'string' },
+  },
+})
+
+if (!values.source || !values.translations) {
+  throw new Error('required: --source <dir> --translations <dir>')
 }
 
-function parseArgs(argv: string[]): Args {
-  const out: Partial<Args> = { forbidLiterals: [], locales: [...SUPPORTED_LOCALES] }
-  for (let i = 0; i < argv.length; i++) {
-    const a = argv[i]
-    const next = () => argv[++i]
-    switch (a) {
-      case '--source':
-        out.source = resolve(next())
-        break
-      case '--translations':
-        out.translations = resolve(next())
-        break
-      case '--locales':
-        out.locales = next().split(',').map((s) => s.trim()).filter(Boolean)
-        break
-      case '--namespaces':
-        out.namespaces = next().split(',').map((s) => s.trim()).filter(Boolean)
-        break
-      case '--forbid-literal':
-        out.forbidLiterals = next().split(',').map((s) => s.trim()).filter(Boolean)
-        break
-      default:
-        throw new Error(`Unknown flag: ${a}`)
-    }
+const english = resolve(values.source)
+const out = resolve(values.translations)
+const namespaces = values.namespaces ? list(values.namespaces) : await under(english)
+const locales = values.locales ? list(values.locales) : [...SUPPORTED_LOCALES]
+const forbid = values['forbid-literal'] ? list(values['forbid-literal']) : []
+
+let problems = 0
+for (const name of namespaces) {
+  const strings = await read(source(english, name))
+  if (!strings) {
+    console.error(`${name}: no source strings`)
+    problems++
+    continue
   }
-  if (!out.source || !out.translations) {
-    throw new Error('Required flags: --source --translations')
+
+  const found: Record<string, Strings | undefined> = {}
+  for (const locale of locales) {
+    found[locale] = await read(translation(out, locale, name))
   }
-  return out as Args
+
+  for (const problem of check({ name, source: strings, locales: found }, forbid)) {
+    console.error(line(problem))
+    problems++
+  }
 }
 
-type Map = Record<string, string>
-
-async function readJson(path: string): Promise<Map> {
-  if (!existsSync(path)) return {}
-  return JSON.parse(await readFile(path, 'utf8')) as Map
+if (problems > 0) {
+  console.error(`${problems} to fix`)
+  process.exitCode = 1
+} else {
+  console.log(`${namespaces.length} namespaces, ${locales.length} locales, clean`)
 }
 
-function listSlots(s: string): string[] {
-  return (s.match(/\{\{[^}]+\}\}/g) ?? []).slice().sort()
+function list(flag: string): string[] {
+  return flag
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
 }
 
-async function discoverNamespaces(sourceDir: string): Promise<string[]> {
-  if (!existsSync(sourceDir)) return []
-  const entries = await readdir(sourceDir, { withFileTypes: true })
+async function under(dir: string): Promise<string[]> {
+  const entries = await readdir(dir, { withFileTypes: true })
   return entries.filter((e) => e.isDirectory()).map((e) => e.name)
 }
 
-async function main(): Promise<void> {
-  const args = parseArgs(process.argv.slice(2))
-  const namespaces = args.namespaces ?? (await discoverNamespaces(args.source))
-  let errors = 0
-
-  for (const namespace of namespaces) {
-    const sourcePath = join(args.source, namespace, 'en-US.json')
-    if (!existsSync(sourcePath)) continue
-    const source = await readJson(sourcePath)
-
-    if (args.forbidLiterals.length > 0) {
-      for (const [k, v] of Object.entries(source)) {
-        for (const term of args.forbidLiterals) {
-          if (v.includes(term)) {
-            console.error(`[i18n-validate] ${namespace}/en-US.json: "${k}" contains forbidden literal "${term}"`)
-            errors++
-          }
-        }
-      }
-    }
-
-    for (const locale of args.locales) {
-      if (locale === 'en-US') continue
-      const targetPath = join(args.translations, locale, `${namespace}.json`)
-      const target = await readJson(targetPath)
-      for (const [key, sourceVal] of Object.entries(source)) {
-        const translated = target[key]
-        if (translated === undefined) {
-          console.error(`[i18n-validate] ${locale}/${namespace}: missing "${key}"`)
-          errors++
-          continue
-        }
-        const sslots = listSlots(sourceVal)
-        const tslots = listSlots(translated)
-        if (sslots.length !== tslots.length || !sslots.every((s, i) => s === tslots[i])) {
-          console.error(`[i18n-validate] ${locale}/${namespace}: slot mismatch on "${key}"`)
-          console.error(`           source slots: ${JSON.stringify(sslots)}`)
-          console.error(`           target slots: ${JSON.stringify(tslots)}`)
-          errors++
-        }
-      }
-    }
+/** `undefined` for a file that is not there — which the gate reports as its own fact. */
+async function read(path: string): Promise<Strings | undefined> {
+  let text: string
+  try {
+    text = await readFile(path, 'utf8')
+  } catch {
+    return undefined
   }
-
-  if (errors > 0) {
-    console.error(`[i18n-validate] FAILED with ${errors} error(s).`)
-    process.exit(1)
-  }
-  console.log('[i18n-validate] all locales clean.')
+  // Unreadable is not absent. A file somebody broke while hand-editing must fail
+  // the gate rather than read as a locale nobody has started.
+  return JSON.parse(text) as Strings
 }
-
-main().catch((e) => {
-  console.error(e.message ?? e)
-  process.exit(1)
-})
