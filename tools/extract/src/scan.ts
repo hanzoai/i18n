@@ -28,8 +28,13 @@ const TRANS = /i18nKey\s*=\s*['"]([^'"\n]+)['"]/g
  * source file by hand.
  */
 export function scan(code: string, fallback: string, calls: readonly string[] = ['t']): Key[] {
+  // The names are QUOTED into the pattern. They arrive from `--call` on a command
+  // line, so an unescaped one is read as regex: `--call '.*'` matches
+  // `notAcall(…)` and quietly defeats the word boundary this pattern exists for,
+  // and `--call 'a('` is an unterminated group that crashes with a raw stack
+  // trace. A function name is a literal string and is treated as one.
   const call = new RegExp(
-    `\\b(?:${calls.join('|')})\\(\\s*['"]([^'"\\n]+)['"](?:\\s*,\\s*['"]([^'"\\n]*)['"])?`,
+    `\\b(?:${calls.map(literal).join('|')})\\(\\s*['"]([^'"\\n]+)['"](?:\\s*,\\s*['"]([^'"\\n]*)['"])?`,
     'g',
   )
   const found: Key[] = []
@@ -66,4 +71,9 @@ function split(key: string, fallback: string, english?: string): Key {
   return at === -1
     ? { namespace: fallback, key, english: english || key }
     : { namespace: key.slice(0, at), key: key.slice(at + 1), english: english || key.slice(at + 1) }
+}
+
+/** A string matched as itself, not as a pattern. */
+function literal(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }

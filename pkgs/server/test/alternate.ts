@@ -101,3 +101,25 @@ test('a sitemap is a document, not a fragment', () => {
 function count(text: string, needle: string): number {
   return text.split(needle).length - 1
 }
+
+
+test('a sitemap too large to be accepted is refused, not written', () => {
+  // One <url> per locale is what makes the set reciprocal and is also what
+  // multiplies the file: 4,000 paths across 14 locales is 56,000 URLs, past the
+  // 50,000 a sitemap may hold. Over the limit the file is rejected WHOLE — the
+  // failure is no index at all, visible only in Search Console — so the call
+  // says so here instead.
+  const many = Array.from({ length: 4000 }, (_, i) => `/p${i}`)
+  assert.throws(() => sitemap(many, { origin: 'https://hanzo.ai' }), /50000|split/)
+
+  // The ordinary case is untouched.
+  assert.ok(sitemap(['/', '/pricing'], { origin: 'https://hanzo.ai' }).includes('<urlset'))
+})
+
+test('a control character cannot break the document', () => {
+  // C0 controls have no XML escape at all, so one byte out of a CMS slug makes
+  // the whole sitemap unparseable rather than one URL wrong.
+  const xml = sitemap(['/a\u0001b'], { origin: 'https://hanzo.ai' })
+  assert.ok(!/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/.test(xml), 'no raw control byte survives')
+  assert.ok(xml.includes('/ab'), 'the rest of the path is kept')
+})

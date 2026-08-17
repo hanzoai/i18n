@@ -73,7 +73,12 @@ function quality(params: readonly string[]): number {
   if (!q) {
     return 1
   }
-  const weight = Number(q.slice(2))
+  // An EMPTY value is unreadable, not zero. `Number('')` is 0, which is finite,
+  // so `en-US;q=` used to score zero and be dropped as "not acceptable" — the
+  // exact opposite of the rule below, and it discarded the tag a person actually
+  // asked for over a missing character.
+  const raw = q.slice(2).trim()
+  const weight = raw === '' ? Number.NaN : Number(raw)
   // A weight we cannot read leaves the tag at full strength rather than
   // discarding it. The tag is the stated preference; the number is decoration on
   // it, and a typo in the decoration is no reason to stop offering someone their
