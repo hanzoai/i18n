@@ -169,9 +169,31 @@ Source-of-truth English lives in the **product** repo at
 import statically from their own `translations/` dir. A typo in production is a
 PR, and CI takes under five minutes — that IS the hot-fix path.
 
-Packages ship TypeScript. `main` is `src/index.ts`, Node strips types, and every
-bundler downstream reads them, so there is no build step and nothing to keep in
-sync with a `dist/`.
+## Source runs; `dist/` ships
+
+Source imports name the file that exists (`./locales.ts`), so Node runs this tree
+directly under `--experimental-strip-types` and a test needs no build. What is
+PUBLISHED is JavaScript: `tsc` emits `dist/` and `rewriteRelativeImportExtensions`
+turns those `.ts` specifiers into `.js` on the way out.
+
+Both halves are load-bearing, and this file used to claim only the first — that
+`main` was `src/index.ts` and there was therefore "no build step". That is true
+inside the workspace and false everywhere else, because **Node refuses to strip
+types under `node_modules` at every version and no flag lifts it**:
+
+    Error [ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING]
+
+So every package was unimportable the moment it was installed, and the
+`pnpm dlx` invocations above could not run. The tests did not catch it because
+they invoke `../src/cli.ts` by workspace path, which is not under `node_modules`
+— the one place the defect lives. Verify a packaging change by INSTALLING a
+tarball, never by running from the repo.
+
+**Publish with `pnpm`.** Sibling dependencies are declared `workspace:^`, which
+pnpm rewrites to a real range as it packs and npm copies through verbatim,
+producing a tarball that fails on a consumer's machine with
+`EUNSUPPORTEDPROTOCOL`. `scripts/pack.mjs` runs from every `prepack` and refuses
+the wrong packer rather than leaving that to be remembered.
 
 ## Supported locales (toolkit-defined)
 

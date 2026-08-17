@@ -3,17 +3,31 @@
   "version": "0.1.0",
   "license": "BSD-3-Clause",
   "type": "module",
-  "bin": { "i18n-validate": "./src/cli.ts" },
+  "bin": {
+    "i18n-validate": "dist/cli.js"
+  },
   "dependencies": {
     "@hanzo/i18n": "workspace:^"
   },
   "scripts": {
-    "lint": "eslint src",
+    "build": "tsc",
+    "prepack": "node ../../scripts/pack.mjs && npm run build",
     "test": "node --test --experimental-strip-types test/*.ts",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
     "typescript": "5.9.3"
-  }
+  },
+  "main": "dist/check.js",
+  "types": "dist/check.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/check.d.ts",
+      "default": "./dist/check.js"
+    }
+  },
+  "files": [
+    "dist"
+  ]
 }
