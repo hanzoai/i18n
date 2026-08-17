@@ -1,9 +1,3 @@
-node_modules/
 dist/
-.turbo/
-.nx/
-*.log
-.DS_Store
-.env
-.env.local
-.kms-cache/
+*.tgz
+node_modules/

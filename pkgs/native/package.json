@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "license": "BSD-3-Clause",
   "type": "module",
-  "main": "src/index.ts",
-  "types": "src/index.ts",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "sideEffects": false,
   "dependencies": {
     "@hanzo/i18n": "workspace:^"
@@ -18,12 +18,22 @@
     }
   },
   "scripts": {
-    "lint": "eslint src",
+    "build": "tsc",
+    "prepack": "node ../../scripts/pack.mjs && npm run build",
     "test": "node --test --experimental-strip-types test/*.ts",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
     "typescript": "5.9.3"
-  }
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ]
 }

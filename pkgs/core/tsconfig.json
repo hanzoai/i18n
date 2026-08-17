@@ -1,17 +1,24 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "module": "ESNext",
-    "moduleResolution": "Bundler",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,
-    // These packages ship TypeScript: `main` is `src/index.ts`, Node strips
-    // types, and every bundler downstream reads them. There is nothing to emit,
-    // so imports name the file that actually exists.
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "outDir": "dist",
+    "rootDir": "src",
+    // Source names the file that exists (`./locales.ts`), so Node runs this tree
+    // directly with type stripping and a test needs no build. The emit rewrites
+    // those to `.js`, because what ships is JavaScript: Node REFUSES to strip
+    // types under node_modules at any version and no flag lifts it, so a package
+    // whose `main` is a .ts file cannot be imported by anyone who installs it.
     "allowImportingTsExtensions": true,
-    "noEmit": true
+    "rewriteRelativeImportExtensions": true
   },
-  "include": ["src/**/*", "test/**/*"]
+  "include": ["src/**/*"]
 }
