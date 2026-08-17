@@ -91,3 +91,58 @@ test('missing is the question the CLI asks before spending anything', () => {
   assert.deepEqual(missing({ a: 'A' }, { a: '' }), {})
   assert.deepEqual(missing({}, { a: 'Ah' }), {})
 })
+
+test('a large namespace is asked for in batches, not in one impossible request', async () => {
+  // The documented flagship workload is 1377 keys. Asked at once that is ~97 KB
+  // of prompt needing ~21k tokens back; the reply truncates, fails to parse, and
+  // nothing is written — so the next run asks the identical question and
+  // truncates identically. No forward progress is possible at any scale.
+  const source: Strings = {}
+  for (let i = 0; i < 1377; i++) {
+    source[`k${i}`] = `A message of ordinary length, number ${i}.`
+  }
+  const asked: number[] = []
+  const model: Model = async (messages) => {
+    const want = JSON.parse(messages[1].content) as Strings
+    asked.push(Object.keys(want).length)
+    return JSON.stringify(Object.fromEntries(Object.keys(want).map((k) => [k, `x${k}`])))
+  }
+
+  const { added, refused } = await fill(source, {}, 'fr-FR', model)
+  assert.equal(Object.keys(added).length, 1377)
+  assert.deepEqual(refused, [])
+  assert.ok(asked.length > 1, 'must be more than one request')
+  assert.ok(Math.max(...asked) <= 100, `no request may carry more than 100 keys, saw ${Math.max(...asked)}`)
+})
+
+test('one batch failing costs its own keys and nothing else', async () => {
+  // The property that makes progress possible: what answered is returned and
+  // written, what did not stays missing for the next run to ask again.
+  const source: Strings = {}
+  for (let i = 0; i < 250; i++) {
+    source[`k${i}`] = `Message ${i}`
+  }
+  let call = 0
+  const model: Model = async (messages) => {
+    const want = JSON.parse(messages[1].content) as Strings
+    if (++call === 2) {
+      throw new Error('answer was not JSON: <truncated>')
+    }
+    return JSON.stringify(Object.fromEntries(Object.keys(want).map((k) => [k, `x${k}`])))
+  }
+
+  const { added, refused } = await fill(source, {}, 'fr-FR', model)
+  assert.ok(Object.keys(added).length > 0, 'the batches that answered are kept')
+  assert.ok(refused.length > 0, 'the batch that failed is reported, not lost')
+  assert.equal(Object.keys(added).length + refused.length, 250, 'every key is accounted for')
+})
+
+test('every batch failing is an outage and is raised', async () => {
+  // Distinguishable from a model getting strings wrong: nothing came back at all,
+  // so the caller hears it rather than reading "0 of 250" as a quiet success.
+  const source: Strings = { a: 'A', b: 'B' }
+  const model: Model = async () => {
+    throw new Error('endpoint answered 503')
+  }
+  await assert.rejects(fill(source, {}, 'fr-FR', model), /503/)
+})

@@ -11,9 +11,9 @@ consumes the toolkit packages + CLIs.
 | `@hanzo/i18n`            | locales, negotiation (`resolve`), slot parity (`slots`, `parity`), file layout (`source`, `translation`, `contents`) | **built**, 18 tests |
 | `@hanzo/i18n-native`     | which language a device is set to (`detect`) | **built**, 5 tests |
 | `@hanzo/i18n-react`      | React bindings — `useT`, `<Trans>`, `buildResources` | thin re-export of react-i18next |
-| `@hanzo/i18n-server`     | which language a request asks for (`accept`, `negotiate`), and the `hreflang` + sitemap surface that makes a translated page findable | **built**, 21 tests |
-| `@hanzo/i18n-extract`    | scan a codebase → write missing keys into `source/<ns>/en-US.json` | **built**, 13 tests |
-| `@hanzo/i18n-translate`  | fill missing locales through `api.hanzo.ai` | **built**, 9 tests |
+| `@hanzo/i18n-server`     | which language a request asks for (`accept`, `negotiate`), and the `hreflang` + sitemap surface that makes a translated page findable | **built**, 24 tests |
+| `@hanzo/i18n-extract`    | scan a codebase → write missing keys into `source/<ns>/en-US.json` | **built**, 18 tests |
+| `@hanzo/i18n-translate`  | fill missing locales through `api.hanzo.ai` | **built**, 12 tests |
 | `@hanzo/i18n-validate`   | the gate — every key in every locale, slot parity, no product's words in ours | **built**, 15 tests |
 
 The state column is load-bearing. It once read as though all seven existed while

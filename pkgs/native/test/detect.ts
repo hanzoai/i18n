@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import { resolve } from '@hanzo/i18n'
+import { SUPPORTED_LOCALES, resolve } from '@hanzo/i18n'
 import { detect, locales } from '../src/index.ts'
 
 test('a device preference becomes a locale we ship', () => {
@@ -30,8 +30,17 @@ test('detect and resolve cannot disagree', () => {
   }
 })
 
-test('locales() is safe where react-native is not installed', () => {
-  // It resolves through require() inside a try, so importing this package on a
-  // server or in a test is not a module-not-found.
-  assert.ok(Array.isArray(locales()) || typeof locales() === 'object')
+test('locales() answers a usable tag on any runtime, and never throws', () => {
+  // The previous assertion here could not fail — `Array.isArray(x) || typeof x
+  // === 'object'` is true for every array — so it tested nothing while looking
+  // like it tested the fallback. What is actually worth pinning is that whatever
+  // this returns is something `resolve` can take: a list of tags, possibly empty
+  // on a runtime with no Intl, and never an exception on the render path.
+  const got = locales()
+  assert.ok(Array.isArray(got), 'a list, so resolve can read it as preferences')
+  for (const tag of got) {
+    assert.equal(typeof tag, 'string')
+    assert.ok(tag.length > 0)
+  }
+  assert.ok(SUPPORTED_LOCALES.includes(resolve(got) as never), 'always lands on a locale we ship')
 })

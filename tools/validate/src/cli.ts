@@ -15,7 +15,7 @@
 import { readFile, readdir } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { parseArgs } from 'node:util'
-import { SUPPORTED_LOCALES, source, translation } from '@hanzo/i18n'
+import { DEFAULT_LOCALE, SUPPORTED_LOCALES, source, translation } from '@hanzo/i18n'
 
 import { check, line, type Strings } from './check.ts'
 
@@ -37,6 +37,18 @@ const english = resolve(values.source)
 const out = resolve(values.translations)
 const namespaces = values.namespaces ? list(values.namespaces) : await under(english)
 const locales = values.locales ? list(values.locales) : [...SUPPORTED_LOCALES]
+
+// The English is the source, so it is what everything is checked AGAINST and is
+// never itself checked. `--locales en-US` therefore asks the gate to examine
+// nothing, and it answered "clean" and exited 0 — a gate that cannot fail,
+// wearing the same output as a gate that passed. That is worse than no gate,
+// because CI is green either way and only one of them looked.
+if (locales.every((l) => l === DEFAULT_LOCALE)) {
+  throw new Error(
+    `--locales names only ${DEFAULT_LOCALE}, which is the source every other locale is checked against; ` +
+      `there would be nothing to check`,
+  )
+}
 const forbid = values['forbid-literal'] ? list(values['forbid-literal']) : []
 
 let problems = 0

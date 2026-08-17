@@ -51,6 +51,10 @@ export function links(path: string, site: Site): string {
     .join('\n')
 }
 
+/** What a sitemap may hold, from the sitemaps.org protocol. A file past it is
+ * rejected whole rather than truncated. */
+const MAX_URLS = 50_000
+
 /**
  * A sitemap covering every locale of every path.
  *
@@ -67,6 +71,23 @@ export function sitemap(paths: readonly string[], site: Site): string {
       .filter((a) => a.hreflang !== 'x-default')
       .map((a) => `  <url>\n    <loc>${escape(a.href)}</loc>\n${set}\n  </url>`)
   })
+
+  // One entry per locale is what makes the set reciprocal, and it is also what
+  // multiplies the file: fourteen locales turn a 2,500-page docs site into 35,000
+  // entries and ~44 MB. Both are past what a sitemap may be — 50,000 URLs and
+  // 50 MB — and a file over either is rejected WHOLE, so the failure is not a
+  // truncated index but no index at all, reported nowhere except Search Console.
+  //
+  // Refused rather than split, because splitting means a sitemap INDEX, and an
+  // index is a second file at a second URL that something has to serve and
+  // reference. That is the caller's shape to choose; this says which call was
+  // too big and what the bounds are.
+  if (entries.length > MAX_URLS) {
+    throw new Error(
+      `sitemap: ${entries.length} URLs (${paths.length} paths × ${entries.length / Math.max(paths.length, 1)} locales) ` +
+        `exceeds the ${MAX_URLS} a sitemap may hold — split the paths and write a sitemap index`,
+    )
+  }
 
   return [
     '<?xml version="1.0" encoding="UTF-8"?>',
@@ -97,11 +118,19 @@ function trim(path: string): string {
 }
 
 function escape(text: string): string {
-  return text
-    // Ampersand first. Any other order re-escapes the escapes, and a real URL
-    // carries one the moment it has a second query parameter.
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
+  return (
+    text
+      // C0 controls have no escape in XML 1.0 — `&#1;` is as illegal as the raw
+      // byte — so the only way to keep the document parseable is to drop them.
+      // A path reaches this from a route table or a CMS slug, and one stray byte
+      // makes the whole sitemap unparseable rather than one URL wrong.
+      // eslint-disable-next-line no-control-regex
+      .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '')
+      // Ampersand first. Any other order re-escapes the escapes, and a real URL
+      // carries one the moment it has a second query parameter.
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+  )
 }

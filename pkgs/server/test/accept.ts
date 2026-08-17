@@ -81,3 +81,15 @@ test('real browsers', () => {
   assert.equal(negotiate('zh-HK,zh;q=0.9,en;q=0.8'), 'zh-TW')
   assert.equal(negotiate('pt-BR,pt;q=0.9,en-US;q=0.8'), 'pt-PT')
 })
+
+test('a q with no number is a typo, not a refusal', () => {
+  // `Number('')` is 0 — finite — so an empty q scored zero and the tag was
+  // dropped as "not acceptable", discarding the language someone asked for over
+  // a missing character. Unreadable means full strength, which is what the rule
+  // beside it has always said.
+  assert.deepEqual(accept('en-US;q='), ['en-US'])
+  assert.deepEqual(accept('fr-FR;q=,de-DE;q=,ja-JP'), ['fr-FR', 'de-DE', 'ja-JP'])
+  assert.deepEqual(accept('en-US;q=   '), ['en-US'])
+  // A real zero still means what RFC 9110 says it means.
+  assert.deepEqual(accept('en-US;q=0,fr-FR'), ['fr-FR'])
+})

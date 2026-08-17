@@ -26,18 +26,20 @@ export interface Source {
  * Hermes has shipped full ICU since 0.71, and `Intl` is the same API the web and
  * the server answer from — one question, one shape, three platforms.
  *
- * `NativeModules` is the fallback for an older Hermes or a JSC build, where
- * `Intl` is absent or a stub that reports `en-US` for every device. It is read
- * defensively through `require`, so a package that is not React Native at all —
- * a unit test, a server-side render of a native screen — resolves to the default
- * instead of throwing on a module that was never there.
+ * There is no `NativeModules` fallback and that is deliberate. One was written,
+ * and it could not run: this package is ESM, `require` is not defined there, and
+ * the ReferenceError went straight into the catch — so the branch that was
+ * supposed to rescue an older runtime silently returned nothing on every
+ * runtime. It was also aimed below our own floor, since the declared peer is
+ * react-native >= 0.71 and Hermes has shipped full ICU since exactly there.
+ *
+ * A runtime with no `Intl` gets an empty list, which `resolve` answers with the
+ * default — the honest answer to "what language is this device" when nothing can
+ * say.
  */
 export function locales(): readonly string[] {
-  const fromIntl = intlLocale()
-  if (fromIntl) {
-    return [fromIntl]
-  }
-  return nativeLocales()
+  const tag = intlLocale()
+  return tag ? [tag] : []
 }
 
 /** The one locale to render in — device preference, negotiated against what we ship. */
@@ -47,40 +49,9 @@ export function detect(source: Source = { locales }): SupportedLocale {
 
 function intlLocale(): string | undefined {
   try {
-    const tag = new Intl.DateTimeFormat().resolvedOptions().locale
-    // A stub Intl answers the same tag on every device. It is indistinguishable
-    // from a device genuinely set to it, so believing it costs a mis-rendered
-    // app for everyone else; NativeModules is asked instead and knows the truth.
-    return tag && tag !== 'en-US' ? tag : undefined
+    return new Intl.DateTimeFormat().resolvedOptions().locale || undefined
   } catch {
     return undefined
   }
 }
 
-function nativeLocales(): readonly string[] {
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires, global-require
-    const { NativeModules } = require('react-native') as {
-      NativeModules?: {
-        SettingsManager?: { settings?: { AppleLanguages?: string[]; AppleLocale?: string } }
-        I18nManager?: { localeIdentifier?: string }
-      }
-    }
-    const ios = NativeModules?.SettingsManager?.settings
-    if (ios?.AppleLanguages?.length) {
-      return ios.AppleLanguages
-    }
-    if (ios?.AppleLocale) {
-      return [ios.AppleLocale]
-    }
-    const android = NativeModules?.I18nManager?.localeIdentifier
-    if (android) {
-      // Android reports POSIX form (`en_US`); the rest of the world speaks BCP-47.
-      return [android.replace(/_/g, '-')]
-    }
-  } catch {
-    // Not a React Native runtime. The caller gets the default, which is the
-    // honest answer to "what language is this device" when there is no device.
-  }
-  return []
-}

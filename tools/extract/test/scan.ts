@@ -78,3 +78,16 @@ test('merge run twice is merge run once', () => {
   assert.deepEqual(merge(once, found, 'shared'), once)
   assert.equal(JSON.stringify(merge(once, found, 'shared')), JSON.stringify(once))
 })
+
+
+test('a --call name is matched as a name, not as a pattern', () => {
+  // These arrive from a command line. Unescaped, `.*` matches any call at all —
+  // defeating the word boundary the pattern exists for — and `a(` is an
+  // unterminated group that crashes before scanning anything.
+  assert.deepEqual(scan(`notAcall('x.y', 'X')`, 'app', ['.*']), [])
+  assert.doesNotThrow(() => scan(`t('a.b', 'A')`, 'app', ['a(']))
+  // The ordinary case still works, including a product's own wrapper name.
+  assert.deepEqual(scan(`localize('a.b', 'A')`, 'app', ['localize']), [
+    { namespace: 'app', key: 'a.b', english: 'A' },
+  ])
+})
