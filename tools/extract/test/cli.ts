@@ -68,3 +68,53 @@ test('it refuses to guess where the code or the strings are', async () => {
   await assert.rejects(run('node', [cli, '--source', '.']), /required/)
   await assert.rejects(run('node', [cli, '--code', '.', '--source', '.', '--wat', 'x']))
 })
+
+test('a strings file nobody can parse stops the run instead of replacing it', async () => {
+  // The whole tool writes back what it read, so reading an unparseable file as
+  // empty does not merely fail to merge — it REPLACES a reviewed English file
+  // with whatever this one run happened to scan, reports "1 new, 1 total", and
+  // exits 0. One trailing comma is enough. `validate` already drew this
+  // distinction ("unreadable is not absent") and these two did not.
+  const dir = await mkdtemp(join(tmpdir(), 'i18n-'))
+  const code = join(dir, 'code')
+  const strings = join(dir, 'strings')
+  await mkdir(join(code), { recursive: true })
+  await mkdir(join(strings, 'exchange'), { recursive: true })
+  await writeFile(join(code, 'a.tsx'), `t('exchange:swap.title', 'Swap')\n`)
+
+  const reviewed = '{\n  "swap.title": "Swap tokens instantly",\n  "swap.blurb": "carefully worded",\n}\n'
+  const path = join(strings, 'exchange', 'en-US.json')
+  await writeFile(path, reviewed)
+
+  await assert.rejects(run('node', [cli, '--code', code, '--source', strings]))
+  assert.equal(await readFile(path, 'utf8'), reviewed, 'the reviewed file must survive')
+})
+
+test('the failure names the file, because a run walks many of them', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'i18n-'))
+  const code = join(dir, 'code')
+  const strings = join(dir, 'strings')
+  await mkdir(code, { recursive: true })
+  await mkdir(join(strings, 'exchange'), { recursive: true })
+  await writeFile(join(code, 'a.tsx'), `t('exchange:k', 'v')\n`)
+  await writeFile(join(strings, 'exchange', 'en-US.json'), '{,}')
+
+  const err = await run('node', [cli, '--code', code, '--source', strings]).then(
+    () => undefined,
+    (e: {stderr?: string}) => e,
+  )
+  assert.ok(err?.stderr?.includes('exchange/en-US.json'), err?.stderr)
+})
+
+test('a missing file is still simply empty', async () => {
+  // The other half of the distinction: absent is not broken, and a first run
+  // against a product with no strings yet must still write one.
+  const dir = await mkdtemp(join(tmpdir(), 'i18n-'))
+  const code = join(dir, 'code')
+  const strings = join(dir, 'strings')
+  await mkdir(code, { recursive: true })
+  await writeFile(join(code, 'a.tsx'), `t('exchange:k', 'v')\n`)
+
+  await run('node', [cli, '--code', code, '--source', strings])
+  assert.deepEqual(JSON.parse(await readFile(join(strings, 'exchange', 'en-US.json'), 'utf8')), {k: 'v'})
+})
