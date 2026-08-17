@@ -8,18 +8,17 @@ consumes the toolkit packages + CLIs.
 
 | package                  | role | state |
 |--------------------------|------|-------|
-| `@hanzo/i18n`            | locale registry, negotiation (`resolve`), types, brand-interpolation contract | **built**, tested |
-| `@hanzo/i18n-native`     | which language a device is set to (`detect`) | **built**, tested |
+| `@hanzo/i18n`            | locales, negotiation (`resolve`), slot parity (`slots`, `parity`), file layout (`source`, `translation`, `contents`) | **built**, 18 tests |
+| `@hanzo/i18n-native`     | which language a device is set to (`detect`) | **built**, 5 tests |
 | `@hanzo/i18n-react`      | React bindings — `useT`, `<Trans>`, `buildResources` | thin re-export of react-i18next |
-| `@hanzo/i18n-server`     | Node / SSR helpers | **not written** |
-| `@hanzo/i18n-extract`    | scan a codebase → write missing keys into `source/<ns>/en-US.json` | **not written** |
-| `@hanzo/i18n-translate`  | zen-translator CLI — calls `llm.hanzo.ai`, fills missing locales | **not written** |
-| `@hanzo/i18n-validate`   | CI gate — every key translated in every locale, `{{slot}}` parity | **not written** |
+| `@hanzo/i18n-server`     | which language a request asks for (`accept`, `negotiate`), and the `hreflang` + sitemap surface that makes a translated page findable | **built**, 21 tests |
+| `@hanzo/i18n-extract`    | scan a codebase → write missing keys into `source/<ns>/en-US.json` | **built**, 13 tests |
+| `@hanzo/i18n-translate`  | fill missing locales through `api.hanzo.ai` | **built**, 9 tests |
+| `@hanzo/i18n-validate`   | the gate — every key in every locale, slot parity, no product's words in ours | **built**, 15 tests |
 
-The state column is not decoration. This table described all seven as though
-they existed while `native/` and `server/` were EMPTY DIRECTORIES, which is the
-shape that gets a package adopted on paper and discovered missing by whoever
-imports it.
+The state column is load-bearing. It once read as though all seven existed while
+two of them were empty directories, which is the shape that gets a package
+adopted on paper and discovered missing by whoever imports it.
 
 ## The formatter is shared; only DISCOVERY is per-surface
 
@@ -37,14 +36,20 @@ a few dozen lines rather than a mobile port of the toolkit. A second formatter
 needs it: turning `en-GB`, `es-419` or `zh-Hant-HK` into a locale we ship is one
 decision, and a surface that answers it locally is a surface where the same
 person sees a different language depending on which app they opened.
-`@hanzo/i18n-native` exists to ANSWER what the device wants, never to re-decide
-what we serve — `detect` is `resolve` over the device list, and a test pins that
-the two cannot disagree.
+`@hanzo/i18n-native` and `@hanzo/i18n-server` exist to ANSWER what a device or a
+request wants, never to re-decide what we serve — `detect` and `negotiate` are
+both `resolve` over a preference list, and each package carries a test pinning
+that it cannot disagree with core.
 
 Script is the part a naive matcher drops: `zh-CN` and `zh-TW` differ by writing
 system and neither tag says so, so both sides are maximized through `Intl.Locale`
 before comparing. Without it a Hong Kong reader gets simplified characters
 because `zh-CN` is listed first.
+
+Slot parity is the same story one level down. `{{amount}}` surviving translation
+is what stands between a person and a screen with a blank where a number goes, so
+`slots` and `parity` live in core and both the translator and the gate ask there.
+Answered separately, the translator writes a file the gate then refuses.
 
 ## What does NOT live here (content)
 
@@ -53,7 +58,7 @@ Each product's strings live with the product:
 ```
 ~/work/lux/exchange/translations/
 ├── source/<ns>/en-US.json           ← the canonical English strings
-└── translations/<locale>/<ns>.json   ← zen-translator output, human-reviewed
+└── translations/<locale>/<ns>.json   ← translator output, human-reviewed
 
 ~/work/zoo/exchange/translations/      ← (or a soft-link to lux's upstream)
 ~/work/hanzo/chat/translations/
@@ -69,24 +74,32 @@ and `--translations` directory args.
 ## CLI usage from a product repo
 
 ```bash
-# CI: extract new keys from code → source/exchange/en-US.json
+# new keys from code → source/<ns>/en-US.json
 pnpm dlx @hanzo/i18n-extract \
   --code ./apps/web/src \
   --source ./translations/source
 
-# CI: fill missing translations via zen-translator
-HANZO_LLM_API_KEY=$(hanzo-kms get /i18n/zen-translator-key) \
+# fill what the other thirteen locales are missing
+HANZO_API_KEY=$(hanzo kms get /i18n/translator) \
 pnpm dlx @hanzo/i18n-translate \
   --source ./translations/source \
-  --translations ./translations/translations \
-  --namespaces exchange,wallet
+  --translations ./translations/translations
 
-# CI: validate every PR
+# the gate, on every PR
 pnpm dlx @hanzo/i18n-validate \
   --source ./translations/source \
   --translations ./translations/translations \
   --forbid-literal "Lux Wallet,lux.exchange,Zoo Wallet,zoo.exchange"
 ```
+
+`extract` reads `t('key')`, `t('key', 'English')`, `t('ns:key')` and
+`<Trans i18nKey="key">`. A key built at runtime is not extracted, because nothing
+static can know what it holds — those belong in the source file by hand.
+
+`translate` only ever writes keys that are missing, so a reviewer's correction
+survives every later run and a second CI run costs nothing. A translation whose
+slots don't match its source is refused rather than written, which leaves the key
+missing for the next run and visible to the gate now.
 
 The `--forbid-literal` list belongs to the product, not the toolkit. Different
 products forbid different brand strings.
@@ -94,26 +107,37 @@ products forbid different brand strings.
 ## Library usage from a product repo
 
 ```ts
-// apps/web/src/i18n.ts in lux/exchange
+// apps/web/src/i18n.ts
 import { buildResources, useT } from '@hanzo/i18n-react'
-import { SUPPORTED_LOCALES } from '@hanzo/i18n'
 import enUS from '../translations/source/exchange/en-US.json'
 import esES from '../translations/translations/es-ES/exchange.json'
-// …
 
 i18n.init({
   fallbackLng: 'en-US',
-  resources: buildResources({
-    'en-US': { exchange: enUS },
-    'es-ES': { exchange: esES },
-    // …
-  }),
+  resources: buildResources({ 'en-US': { exchange: enUS }, 'es-ES': { exchange: esES } }),
 })
 ```
 
+```ts
+// any server: which language, and how a crawler finds the other thirteen
+import { links, negotiate, sitemap } from '@hanzo/i18n-server'
+
+const locale = negotiate(request.headers.get('accept-language'))
+
+const site = { origin: 'https://hanzo.ai' }
+links('/pricing', site)                       // <link rel="alternate" hreflang="…"> for the head
+sitemap(['/', '/pricing', '/docs'], site)     // every locale of every path
+```
+
+Each localized URL is its own sitemap entry carrying the whole alternate set,
+including `x-default`. The set counts only when it is reciprocal, so the shorter
+version — one entry for the default URL listing the translations — is ignored and
+the translations go unindexed. Pass `url` on the site to keep locales somewhere
+other than a path prefix.
+
 The toolkit knows nothing about exchanges, wallets, chats, or any specific
 product. It only knows what a "translation" is, what locales are supported,
-and how to validate slot parity.
+where the files sit, and how to check slot parity.
 
 ## Brand interpolation contract
 
@@ -122,7 +146,6 @@ that all white-label products use. Products are free to extend it with their
 own slots; the toolkit just enforces parity between source and translations.
 
 ```ts
-// @hanzo/i18n/types
 export interface BrandInterpolation {
   brandName: string
   brandTitle: string
@@ -138,10 +161,15 @@ export interface BrandInterpolation {
 
 ## One way to do everything
 
-1. Source-of-truth English strings live in the **product** repo: `translations/source/<ns>/en-US.json`.
-2. zen-translator fills `translations/translations/<locale>/<ns>.json` for the other 13 locales.
-3. Apps import statically from their own `translations/` dir.
-4. Typo in production? `PR → review → merge → ship`. CI takes <5 minutes. That IS the hot-fix path.
+Source-of-truth English lives in the **product** repo at
+`translations/source/<ns>/en-US.json`; `translate` fills
+`translations/translations/<locale>/<ns>.json` for the other thirteen; apps
+import statically from their own `translations/` dir. A typo in production is a
+PR, and CI takes under five minutes — that IS the hot-fix path.
+
+Packages ship TypeScript. `main` is `src/index.ts`, Node strips types, and every
+bundler downstream reads them, so there is no build step and nothing to keep in
+sync with a `dist/`.
 
 ## Supported locales (toolkit-defined)
 
@@ -159,3 +187,6 @@ products `pnpm up @hanzo/i18n` and rerun `@hanzo/i18n-translate`.
 2. Products consume the toolkit, never extend it with brand-specific code.
 3. Brand-name forbid lists are passed to `validate` as flags, never hardcoded.
 4. CLIs are configured via flags — no hardcoded paths to `~/work/...` anywhere.
+5. Inference goes to `api.hanzo.ai`. The key comes from KMS via `HANZO_API_KEY`
+   and is never committed.
+6. `pnpm test` and `pnpm typecheck` from the root run every package.
