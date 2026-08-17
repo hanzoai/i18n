@@ -1,4 +1,4 @@
-import type { SupportedLocale, Namespace } from './locales'
+import type { SupportedLocale, Namespace } from './locales.ts'
 
 export type TranslationMap = Record<string, string>
 export type NamespacedTranslations = Record<Namespace, TranslationMap>

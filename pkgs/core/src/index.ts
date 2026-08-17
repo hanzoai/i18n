@@ -4,6 +4,8 @@ export {
   NAMESPACES,
   type SupportedLocale,
   type Namespace,
-} from './locales'
+} from './locales.ts'
 
-export type { TranslationMap, NamespacedTranslations, LocaleTranslations, BrandInterpolation } from './types'
+export type { TranslationMap, NamespacedTranslations, LocaleTranslations, BrandInterpolation } from './types.ts'
+
+export { resolve } from './resolve.ts'

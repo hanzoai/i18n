@@ -6,15 +6,45 @@ consumes the toolkit packages + CLIs.
 
 ## What lives here (toolkit)
 
-| package                  | role |
-|--------------------------|------|
-| `@hanzo/i18n`            | types, supported-locale registry, slot-parity helpers, brand-interpolation contract |
-| `@hanzo/i18n-react`      | React bindings — `useT`, `<Trans>`, `buildResources` |
-| `@hanzo/i18n-native`     | React Native bindings |
-| `@hanzo/i18n-server`     | Node / SSR helpers |
-| `@hanzo/i18n-extract`    | scan a codebase → write missing keys into `source/<ns>/en-US.json` |
-| `@hanzo/i18n-translate`  | zen-translator CLI — calls `llm.hanzo.ai`, fills missing locales |
-| `@hanzo/i18n-validate`   | CI gate — every key translated in every locale, `{{slot}}` parity |
+| package                  | role | state |
+|--------------------------|------|-------|
+| `@hanzo/i18n`            | locale registry, negotiation (`resolve`), types, brand-interpolation contract | **built**, tested |
+| `@hanzo/i18n-native`     | which language a device is set to (`detect`) | **built**, tested |
+| `@hanzo/i18n-react`      | React bindings — `useT`, `<Trans>`, `buildResources` | thin re-export of react-i18next |
+| `@hanzo/i18n-server`     | Node / SSR helpers | **not written** |
+| `@hanzo/i18n-extract`    | scan a codebase → write missing keys into `source/<ns>/en-US.json` | **not written** |
+| `@hanzo/i18n-translate`  | zen-translator CLI — calls `llm.hanzo.ai`, fills missing locales | **not written** |
+| `@hanzo/i18n-validate`   | CI gate — every key translated in every locale, `{{slot}}` parity | **not written** |
+
+The state column is not decoration. This table described all seven as though
+they existed while `native/` and `server/` were EMPTY DIRECTORIES, which is the
+shape that gets a package adopted on paper and discovered missing by whoever
+imports it.
+
+## The formatter is shared; only DISCOVERY is per-surface
+
+A message renders identically on web, desktop and mobile — ICU is ICU and the
+bindings are the same React, so there is nothing platform-specific about
+formatting one. What actually differs is how each surface learns the person's
+preference: a browser has `navigator.languages`, a phone has an OS list, a server
+has `Accept-Language`.
+
+So that is the ONLY axis packages split on, and it is why `@hanzo/i18n-native` is
+a few dozen lines rather than a mobile port of the toolkit. A second formatter
+"for mobile" is how one string comes to render two ways.
+
+`resolve` is the counterpart and lives in core precisely because every surface
+needs it: turning `en-GB`, `es-419` or `zh-Hant-HK` into a locale we ship is one
+decision, and a surface that answers it locally is a surface where the same
+person sees a different language depending on which app they opened.
+`@hanzo/i18n-native` exists to ANSWER what the device wants, never to re-decide
+what we serve — `detect` is `resolve` over the device list, and a test pins that
+the two cannot disagree.
+
+Script is the part a naive matcher drops: `zh-CN` and `zh-TW` differ by writing
+system and neither tag says so, so both sides are maximized through `Intl.Locale`
+before comparing. Without it a Hong Kong reader gets simplified characters
+because `zh-CN` is listed first.
 
 ## What does NOT live here (content)
 
