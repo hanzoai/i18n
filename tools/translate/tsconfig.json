@@ -1,0 +1,4 @@
+{
+  "extends": "../../pkgs/core/tsconfig.json",
+  "include": ["src/**/*", "test/**/*"]
+}

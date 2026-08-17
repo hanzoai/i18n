@@ -2,21 +2,18 @@
   "name": "@hanzo/i18n-translate",
   "version": "0.1.0",
   "license": "BSD-3-Clause",
-  "private": true,
   "type": "module",
-  "main": "src/cli.ts",
-  "bin": { "zen-translator": "./src/cli.ts" },
-  "scripts": {
-    "translate": "tsx src/cli.ts",
-    "lint": "eslint src",
-    "typecheck": "tsc --noEmit"
-  },
+  "bin": { "i18n-translate": "./src/cli.ts" },
   "dependencies": {
     "@hanzo/i18n": "workspace:^"
   },
+  "scripts": {
+    "lint": "eslint src",
+    "test": "node --test --experimental-strip-types test/*.ts",
+    "typecheck": "tsc --noEmit"
+  },
   "devDependencies": {
     "@types/node": "^20.0.0",
-    "tsx": "^4.0.0",
     "typescript": "5.9.3"
   }
 }
