@@ -21,11 +21,11 @@
     "build": "tsc",
     "prepack": "node ../../scripts/pack.mjs && npm run build",
     "test": "node --test --experimental-strip-types test/*.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "../../node_modules/tsgo/bin/tsc --noEmit --incremental false"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
-    "typescript": "5.9.3"
+    "typescript": "6.0.3"
   },
   "exports": {
     ".": {

@@ -1,13 +1,14 @@
 import type { Resource, ResourceLanguage } from 'i18next'
-import { useTranslation } from 'react-i18next'
-
-export { useTranslation, Trans } from 'react-i18next'
 
 /**
- * Re-export of useTranslation as `useT` for the canonical Hanzo idiom.
+ * `useT` is the canonical Hanzo idiom for useTranslation.
  * `const { t } = useT(); t('swap.title', { brandName: 'Lux' })`
+ *
+ * A re-export, not `const useT = useTranslation`: an aliased value has to have
+ * its type NAMED in the declaration output, and react-i18next's overload type
+ * is not exported, so the alias form cannot be declared at all.
  */
-export const useT = useTranslation
+export { useTranslation, useTranslation as useT, Trans } from 'react-i18next'
 
 /**
  * Build the i18next `resources` shape from a per-namespace JSON map.

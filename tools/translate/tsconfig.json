@@ -1,6 +1,9 @@
 {
   "compilerOptions": {
     "target": "ES2022",
+    // TS7 does not sweep in every installed @types, and does not reach a parent
+    // node_modules for them either. This CLI is Node, so name it.
+    "types": ["node"],
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "strict": true,

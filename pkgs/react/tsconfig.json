@@ -2,6 +2,9 @@
   "extends": "../core/tsconfig.json",
   "compilerOptions": {
     "jsx": "react-jsx",
+    // rootDir in the base resolves against the BASE, so without this override
+    // every file here is "not under rootDir pkgs/core/src".
+    "rootDir": "src",
     "lib": ["ES2022", "DOM"]
   },
   "include": ["src/**/*"]
