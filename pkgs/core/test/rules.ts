@@ -48,3 +48,15 @@ test('English-identical prose is for review, not refusal; code, paths and names 
   }
   assert.deepEqual(faults('en-US', 'Open source', 'Open source', terms), [])
 })
+
+test('every locale in a non-Latin script is held to it, and Hong Kong to Traditional characters', () => {
+  assert.deepEqual(faults('fa', 'Account and organization', 'Account va sazman', terms), ['script'])
+  assert.deepEqual(faults('he', 'Account and organization', 'חשבון וארגון', terms), [])
+  assert.deepEqual(faults('pa-PK', 'Account and organization', 'ਖਾਤਾ ਅਤੇ ਸੰਸਥਾ', terms), ['script'])
+  assert.deepEqual(faults('pa', 'Account and organization', 'ਖਾਤਾ ਅਤੇ ਸੰਸਥਾ', terms), [])
+  assert.deepEqual(faults('my', 'Account and organization', 'အကောင့်နှင့် အဖွဲ့အစည်း', terms), [])
+  assert.deepEqual(faults('zh-HK', 'Account and organization', '账户和组织机构', terms), ['simplified'])
+  assert.deepEqual(faults('zh-HK', 'Account and organization', '帳戶和組織', terms), [])
+  // Latin-script locales have no script to hold: Kurmanji, Uzbek, Malay.
+  assert.deepEqual(faults('ku', 'Account and organization', 'Hesab û rêxistin', terms), [])
+})

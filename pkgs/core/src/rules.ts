@@ -44,7 +44,7 @@ export function faults(locale: string, source: string, value: string, terms: Ter
   if (isProse && script && !script.test(value)) {
     found.push('script')
   }
-  if (locale === 'zh-Hant' && SIMPLIFIED.test(value)) {
+  if ((locale === 'zh-Hant' || locale === 'zh-HK') && SIMPLIFIED.test(value)) {
     found.push('simplified')
   }
   if (locale === 'zh-Hans' && TRADITIONAL.test(value)) {
@@ -103,20 +103,48 @@ const PROGRAM = /[;(){}=]|^\s*(?:export|const|if|return|import)\b|^#|\w[./]\w/
 const SCRIPTS: Record<string, RegExp> = {
   am: /\p{Script=Ethiopic}/u,
   ar: /\p{Script=Arabic}/u,
-  bn: /\p{Script=Bengali}/u,
+  'ar-EG': /\p{Script=Arabic}/u,
+  'ar-LB': /\p{Script=Arabic}/u,
+  'ar-MA': /\p{Script=Arabic}/u,
+  'ar-SA': /\p{Script=Arabic}/u,
+  as: /\p{Script=Bengali}/u,
   bho: /\p{Script=Devanagari}/u,
+  bn: /\p{Script=Bengali}/u,
+  ckb: /\p{Script=Arabic}/u,
+  fa: /\p{Script=Arabic}/u,
+  'fa-AF': /\p{Script=Arabic}/u,
   gu: /\p{Script=Gujarati}/u,
+  he: /\p{Script=Hebrew}/u,
   'hi-IN': /\p{Script=Devanagari}/u,
+  hy: /\p{Script=Armenian}/u,
   'ja-JP': /[\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Han}]/u,
+  ka: /\p{Script=Georgian}/u,
+  kk: /\p{Script=Cyrillic}/u,
+  km: /\p{Script=Khmer}/u,
   kn: /\p{Script=Kannada}/u,
   'ko-KR': /\p{Script=Hangul}/u,
+  ky: /\p{Script=Cyrillic}/u,
+  lo: /\p{Script=Lao}/u,
   ml: /\p{Script=Malayalam}/u,
+  mn: /\p{Script=Cyrillic}/u,
   mr: /\p{Script=Devanagari}/u,
+  my: /\p{Script=Myanmar}/u,
+  ne: /\p{Script=Devanagari}/u,
+  or: /\p{Script=Oriya}/u,
+  pa: /\p{Script=Gurmukhi}/u,
+  'pa-PK': /\p{Script=Arabic}/u,
+  ps: /\p{Script=Arabic}/u,
   ru: /\p{Script=Cyrillic}/u,
+  sd: /\p{Script=Arabic}/u,
+  si: /\p{Script=Sinhala}/u,
   ta: /\p{Script=Tamil}/u,
   te: /\p{Script=Telugu}/u,
+  tg: /\p{Script=Cyrillic}/u,
   th: /\p{Script=Thai}/u,
+  ug: /\p{Script=Arabic}/u,
   uk: /\p{Script=Cyrillic}/u,
+  ur: /\p{Script=Arabic}/u,
+  'zh-HK': /\p{Script=Han}/u,
   'zh-Hans': /\p{Script=Han}/u,
   'zh-Hant': /\p{Script=Han}/u,
 }

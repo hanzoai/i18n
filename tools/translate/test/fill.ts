@@ -34,31 +34,31 @@ test('only the missing keys are asked for', async () => {
 test('a complete locale is not a request', async () => {
   // Idempotence, and it is also the bill: a second CI run costs nothing.
   const done = await fill({ a: 'A' }, { a: 'Ah' }, 'fr-FR', silent)
-  assert.deepEqual(done, { added: {}, refused: [] })
-  assert.deepEqual(await fill({}, {}, 'fr-FR', silent), { added: {}, refused: [] })
+  assert.deepEqual(done, { added: {}, refused: [], kept: [] })
+  assert.deepEqual(await fill({}, {}, 'fr-FR', silent), { added: {}, refused: [], kept: [] })
 })
 
 test('a slot that did not survive is refused, not written', async () => {
   const source = { swap: 'Swap {{amount}} {{token}}' }
 
   const dropped = await fill(source, {}, 'de-DE', says({ swap: 'Tausche {{amount}}' }))
-  assert.deepEqual(dropped, { added: {}, refused: ['swap'] })
+  assert.deepEqual(dropped, { added: {}, refused: ['swap'], kept: [] })
 
   const renamed = await fill(source, {}, 'de-DE', says({ swap: '{{betrag}} {{token}} tauschen' }))
-  assert.deepEqual(renamed, { added: {}, refused: ['swap'] })
+  assert.deepEqual(renamed, { added: {}, refused: ['swap'], kept: [] })
 
   // Reordered is not broken — German moves the verb.
   const moved = await fill(source, {}, 'de-DE', says({ swap: '{{token}} im Wert von {{amount}} tauschen' }))
-  assert.deepEqual(moved, { added: { swap: '{{token}} im Wert von {{amount}} tauschen' }, refused: [] })
+  assert.deepEqual(moved, { added: { swap: '{{token}} im Wert von {{amount}} tauschen' }, refused: [], kept: [] })
 })
 
 test('a refusal leaves the key missing so the next run asks again', async () => {
   const source = { a: '{{x}}', b: 'B' }
   const first = await fill(source, {}, 'de-DE', says({ a: 'kaputt', b: 'Bee' }))
-  assert.deepEqual(first, { added: { b: 'Bee' }, refused: ['a'] })
+  assert.deepEqual(first, { added: { b: 'Bee' }, refused: ['a'], kept: [] })
 
   const second = await fill(source, first.added, 'de-DE', says({ a: '{{x}}!' }))
-  assert.deepEqual(second, { added: { a: '{{x}}!' }, refused: [] })
+  assert.deepEqual(second, { added: { a: '{{x}}!' }, refused: [], kept: [] })
 })
 
 test('the answer is data, not instruction', async () => {
@@ -149,4 +149,17 @@ test('every batch failing is an outage and is raised', async () => {
     throw new Error('endpoint answered 503')
   }
   await assert.rejects(fill(source, {}, 'fr-FR', model), /503/)
+})
+
+test('a label whose protected name the answer transliterated is kept as written', async () => {
+  // `Hanzo OS` and `Gen 1` translate to themselves; a model that writes the name in
+  // another script would do it again on every run, so the label is filed as the source.
+  const terms = { keep: ['Hanzo', 'Gen'] }
+  const source = { os: 'Hanzo OS', gen: 'Gen 1', team: 'Open in Hanzo Team', swap: 'Hanzo {{amount}}' }
+  const answer = { os: 'ہانزو OS', gen: 'نسل ۱', team: 'ہانزو ٹیم میں کھولیں', swap: 'ہانزو {{amount}}' }
+  const { added, refused, kept } = await fillWith(source, {}, 'pa-PK', asking(says(answer), terms), terms)
+  assert.deepEqual(added, { os: 'Hanzo OS', gen: 'Gen 1' })
+  assert.deepEqual(kept, ['os', 'gen'])
+  // Prose and a string with a slot are translations, not labels: they stay missing.
+  assert.deepEqual(refused, ['team', 'swap'])
 })

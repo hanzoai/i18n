@@ -106,7 +106,7 @@ function count(text: string, needle: string): number {
 
 test('a sitemap too large to be accepted is refused, not written', () => {
   // One <url> per locale is what makes the set reciprocal and is also what
-  // multiplies the file: 4,000 paths across 36 locales is 144,000 URLs, past the
+  // multiplies the file: 4,000 paths across 79 locales is 316,000 URLs, past the
   // 50,000 a sitemap may hold. Over the limit the file is rejected WHOLE — the
   // failure is no index at all, visible only in Search Console — so the call
   // says so here instead.

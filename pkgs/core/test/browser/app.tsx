@@ -10,6 +10,11 @@ function App({ review }: { review: boolean }) {
       <h1>{t('Welcome')}</h1>
       <aside data-side={dir === 'rtl' ? 'right' : 'left'}>{t('Settings')}</aside>
       <code>hanzo status</code>
+      <span id="plain" data-i18n-mirror>→</span>
+      <section dir="rtl">
+        <code id="inner">hanzo status</code>
+        <span id="mirrored" data-i18n-mirror>→</span>
+      </section>
     </main>
   )
 }
@@ -24,7 +29,7 @@ createRoot(document.getElementById('root')!).render(
       if (code === 'fr-FR') {
         throw new Error('test network error')
       }
-      if (code === 'ar') {
+      if (code === 'ar' || code.startsWith('ar-')) {
         return { Welcome: 'مرحبًا', Settings: 'الإعدادات', Language: 'اللغة' }
       }
       return { Welcome: `Welcome:${code}` }

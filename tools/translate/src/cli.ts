@@ -7,6 +7,8 @@
  *   HANZO_API_KEY=… i18n-translate --catalogs ./catalogs --terms ./terms.json
  *   TRANSLATION_BASE_URL=http://127.0.0.1:8733/v1 TRANSLATION_MODEL=jais3-ar \
  *     i18n-translate --catalogs ./catalogs --locales ar
+ *   MADLAD_PYTHON=.venv/bin/python i18n-translate --catalogs ./catalogs --locales my \
+ *     --mode madlad --model ./madlad400-3b-mt-ct2-int8
  *
  *   --source <dir>        the reviewed English, one directory per namespace
  *   --translations <dir>  where the other locales go
@@ -15,24 +17,29 @@
  *   --namespaces a,b      default: every namespace under --source
  *   --locales a,b         default: every locale the toolkit ships
  *   --terms <file>        { "keep": [protected names], "brands": [...] }, as for i18n-validate
- *   --mode translate|chat default translate: POST /v1/translate; chat: /v1/chat/completions
+ *   --mode translate|chat|madlad
+ *                         default translate: POST /v1/translate; chat: /v1/chat/completions;
+ *                         madlad: MADLAD-400 on this machine (madlad.py, CTranslate2, CPU)
  *   --tier quality|bulk   the /v1/translate tier, default quality
- *   --model <id>          chat: default zen5; translate: the quality tier's model, default the org's
+ *   --model <id>          chat: default zen5; translate: the quality tier's model, default the org's;
+ *                         madlad: the CTranslate2 conversion directory
  *   --endpoint <origin>   default https://api.hanzo.ai
  *   --weights <ref>       recorded in provenance for a pinned artifact (repo@revision/file)
  *
  * The key is HANZO_API_KEY. TRANSLATION_BASE_URL instead points chat at a local
  * OpenAI-compatible /v1 (TRANSLATION_MODEL, optional TRANSLATION_API_KEY,
  * TRANSLATION_REASONING sent as the template's reasoning_effort, default low).
+ * MADLAD_PYTHON is a Python with ctranslate2 and sentencepiece, default python3.
  */
 import { createHash } from 'node:crypto'
 import { mkdir, readFile, readdir, rename, writeFile } from 'node:fs/promises'
-import { dirname, resolve } from 'node:path'
+import { basename, dirname, resolve } from 'node:path'
 import { parseArgs } from 'node:util'
 import { DEFAULT_LOCALE, SUPPORTED_LOCALES, catalog, contents, source, translation, type Terms } from '@hanzo/i18n'
 
 import { MODEL, ORIGIN, chat } from './chat.ts'
 import { asking, fill, missing, type Engine, type Strings } from './fill.ts'
+import { madlad, spawnWorker } from './madlad.ts'
 import { service, type Tier } from './service.ts'
 
 const { values } = parseArgs({
@@ -54,8 +61,8 @@ const { values } = parseArgs({
 if (!values.catalogs === !(values.source && values.translations)) {
   throw new Error('required: --source <dir> --translations <dir>, or --catalogs <dir>')
 }
-if (values.mode !== 'translate' && values.mode !== 'chat') {
-  throw new Error(`--mode is translate or chat, not ${values.mode}`)
+if (values.mode !== 'translate' && values.mode !== 'chat' && values.mode !== 'madlad') {
+  throw new Error(`--mode is translate, chat or madlad, not ${values.mode}`)
 }
 if (values.tier !== 'quality' && values.tier !== 'bulk') {
   throw new Error(`--tier is quality or bulk, not ${values.tier}`)
@@ -70,7 +77,7 @@ const sourceOf = (ns: string) => (flat ? catalog(flat, DEFAULT_LOCALE) : source(
 const translationOf = (locale: string, ns: string) => (flat ? catalog(flat, locale) : translation(out, locale, ns))
 const locales = values.locales ? known(list(values.locales)) : [...SUPPORTED_LOCALES]
 const terms: Terms = values.terms ? (JSON.parse(await readFile(resolve(values.terms), 'utf8')) as Terms) : {}
-const { engine, label } = connect()
+const { engine, label, close } = connect()
 
 const provenance: Provenance = flat ? await provenanceIn(flat) : {}
 
@@ -95,23 +102,24 @@ for (const namespace of namespaces) {
     }
 
     try {
-      const { added, refused } = await fill(strings, existing, locale, engine, terms)
+      const { added, refused, kept } = await fill(strings, existing, locale, engine, terms)
       if (Object.keys(added).length > 0) {
         await mkdir(dirname(path), { recursive: true })
         await writeFile(path, contents({ ...existing, ...added }), 'utf8')
         if (flat) {
           const entry = (provenance[locale] ??= { review: 'machine-translated; native-speaker review pending', runs: [] })
-          entry.runs.push({
-            model: label,
-            ...(values.weights && { weights: values.weights }),
-            generatedAt: new Date().toISOString(),
-            sourceSha256,
-            keys: Object.keys(added),
-          })
+          const generatedAt = new Date().toISOString()
+          const translated = Object.keys(added).filter((key) => !kept.includes(key))
+          if (translated.length > 0) {
+            entry.runs.push({ model: label, ...(values.weights && { weights: values.weights }), generatedAt, sourceSha256, keys: translated })
+          }
+          if (kept.length > 0) {
+            entry.runs.push({ model: 'source', note: `label kept as written: ${label} transliterated a protected name`, generatedAt, sourceSha256, keys: kept })
+          }
           await save(`${flat}/provenance.json`, `${JSON.stringify(provenance, null, 2)}\n`)
         }
       }
-      console.log(`${locale}/${namespace}: ${Object.keys(added).length} of ${owed}`)
+      console.log(`${locale}/${namespace}: ${Object.keys(added).length} of ${owed}${kept.length > 0 ? ` (${kept.length} labels kept as written)` : ''}`)
       if (refused.length > 0) {
         // Left missing on purpose. Writing a translation whose slots do not
         // match ships a screen with a blank where an amount goes; leaving it
@@ -127,12 +135,21 @@ for (const namespace of namespaces) {
   }
 }
 
+close()
 if (failed > 0) {
   process.exitCode = 1
 }
 
-/** The engine this run asks, and the name its provenance records. */
-function connect(): { engine: Engine; label: string } {
+/** The engine this run asks, the name its provenance records, and how to let it go. */
+function connect(): { engine: Engine; label: string; close: () => void } {
+  const none = () => {}
+  if (values.mode === 'madlad') {
+    if (!values.model) {
+      throw new Error('--mode madlad needs --model <CTranslate2 conversion directory>')
+    }
+    const { worker, close } = spawnWorker(process.env.MADLAD_PYTHON ?? 'python3', resolve(values.model))
+    return { engine: madlad(worker, terms), label: basename(resolve(values.model)), close }
+  }
   const local = process.env.TRANSLATION_BASE_URL
   if (local) {
     const model = process.env.TRANSLATION_MODEL ?? values.model
@@ -142,7 +159,7 @@ function connect(): { engine: Engine; label: string } {
     const endpoint = `${local.replace(/\/+$/, '')}/chat/completions`
     const reasoning = process.env.TRANSLATION_REASONING ?? 'low'
     const extra = { chat_template_kwargs: { enable_thinking: false, reasoning_effort: reasoning } }
-    return { engine: asking(chat(model, endpoint, process.env.TRANSLATION_API_KEY, extra), terms), label: model }
+    return { engine: asking(chat(model, endpoint, process.env.TRANSLATION_API_KEY, extra), terms), label: model, close: none }
   }
 
   const key = process.env.HANZO_API_KEY
@@ -152,10 +169,10 @@ function connect(): { engine: Engine; label: string } {
   const origin = values.endpoint.replace(/\/+$/, '')
   if (values.mode === 'chat') {
     const model = values.model ?? MODEL
-    return { engine: asking(chat(model, `${origin}/v1/chat/completions`, key), terms), label: model }
+    return { engine: asking(chat(model, `${origin}/v1/chat/completions`, key), terms), label: model, close: none }
   }
   const tier = values.tier as Tier
-  return { engine: service(origin, key, tier, terms, values.model), label: `translate/${tier}${values.model ? `/${values.model}` : ''}` }
+  return { engine: service(origin, key, tier, terms, values.model), label: `translate/${tier}${values.model ? `/${values.model}` : ''}`, close: none }
 }
 
 /**

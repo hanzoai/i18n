@@ -1,7 +1,12 @@
-/* Text follows the document; machine-readable content retains its writing order. */
-:where(html[dir='rtl']) :where(input[type='email'], input[type='url'], pre, code, [data-i18n-ltr]) {
+/*
+ * Text follows its direction; machine-readable content keeps its writing order.
+ * `:dir(rtl)` reads the direction an element inherits from the nearest `dir`
+ * attribute, so this holds on a right-to-left page and inside a right-to-left
+ * region of a left-to-right one, for every RTL locale, not one named language.
+ */
+:where(input[type='email'], input[type='url'], pre, code, [data-i18n-ltr]):dir(rtl) {
   direction: ltr;
   unicode-bidi: isolate;
   text-align: start;
 }
-:where(html[dir='rtl']) [data-i18n-mirror] { transform: scaleX(-1); }
+:where([data-i18n-mirror]):dir(rtl) { transform: scaleX(-1); }
