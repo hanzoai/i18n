@@ -1,4 +1,4 @@
-import { SOFT, faults, locales, parity, type Terms } from '@hanzo/i18n'
+import { SOFT, faults, locales, parity, prose, slots, type Terms } from '@hanzo/i18n'
 
 export type Strings = Record<string, string>
 
@@ -22,6 +22,8 @@ export interface Filled {
   added: Strings
   /** Keys the answer got wrong. They stay missing, so the next run asks again. */
   refused: string[]
+  /** Keys of `added` written as the source itself: labels the answer got wrong (see `label`). */
+  kept: string[]
 }
 
 /** The keys a locale still owes. */
@@ -46,8 +48,9 @@ export async function fill(
   const want = missing(source, existing)
   const added: Strings = {}
   const refused: string[] = []
+  const kept: string[] = []
   if (Object.keys(want).length === 0) {
-    return { added, refused }
+    return { added, refused, kept }
   }
 
   const groups = batches(want)
@@ -74,6 +77,9 @@ export async function fill(
       const value = answer[key]
       if (typeof value === 'string' && value.trim() !== '' && sound(locale, english, value, terms)) {
         added[key] = value
+      } else if (label(english, terms) && sound(locale, english, english, terms)) {
+        added[key] = english
+        kept.push(key)
       } else {
         refused.push(key)
       }
@@ -85,7 +91,18 @@ export async function fill(
   if (failure && Object.keys(added).length === 0) {
     throw failure
   }
-  return { added, refused }
+  return { added, refused, kept }
+}
+
+/**
+ * Whether a source is a label: a protected name with at most one other word and no
+ * slot (`Hanzo OS`, `Hanzo.Stack`, `Gen 1`). Its translation is itself, so when an
+ * answer transliterates the name the label is written as the source rather than left
+ * missing for a model that will transliterate it again.
+ */
+function label(english: string, terms: Terms): boolean {
+  const named = (terms.keep ?? []).some((name) => new RegExp(`\\b${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`).test(english))
+  return named && slots(english).length === 0 && !prose(english, terms)
 }
 
 /**
@@ -135,16 +152,57 @@ function sound(locale: string, english: string, value: string, terms: Terms): bo
   return parity(english, value) && faults(locale, english, value, terms).every((f) => SOFT.has(f))
 }
 
+/** A regional Arabic: the register an interface uses, with the region's words only where they differ. */
+const ARABIC = (region: string, area: string) =>
+  `Write Arabic for readers in ${region}: formal, neutral Modern Standard Arabic grammar; use ${area} vocabulary only where the usual interface term differs there; never slang or dialect grammar.`
+
 /** What a model needs told about a locale beyond its tag: the variant, where a tag alone is ambiguous. */
 const NOTES: Record<string, string> = {
   ar: 'Use Modern Standard Arabic.',
+  'ar-EG': ARABIC('Egypt', 'Egyptian'),
+  'ar-LB': ARABIC('Lebanon and the Levant', 'Levantine'),
+  'ar-MA': ARABIC('Morocco and the Maghreb', 'Maghrebi'),
+  'ar-SA': ARABIC('Saudi Arabia and the Gulf', 'Gulf'),
+  as: 'Write Assamese (with ৰ and ৱ), not Bengali.',
+  az: 'Write North Azerbaijani in the Latin alphabet, not Turkish.',
   bho: 'Write Bhojpuri in Devanagari, not Hindi.',
-  'es-ES': 'Use the Spanish of Spain (ordenador, móvil, vale), not Latin American Spanish.',
+  ceb: 'Write Cebuano (Bisaya), not Tagalog.',
+  ckb: 'Write Central Kurdish (Sorani) in its Arabic script, not Persian or Arabic.',
   'es-419': 'Use neutral Latin American Spanish (computadora, celular, ustedes), not the Spanish of Spain.',
+  'es-AR': 'Use Rioplatense Spanish as in Argentine software: voseo (vos tenés, elegí), computadora, celular.',
+  'es-ES': 'Use the Spanish of Spain (ordenador, móvil, vale), not Latin American Spanish.',
+  'es-MX': 'Use Mexican Spanish (tú, computadora, celular), not the Spanish of Spain.',
+  fa: 'Use standard Iranian Persian; write the zero-width non-joiner (U+200C) where Persian spelling needs it.',
+  'fa-AF': 'Write Dari as used in Afghanistan (کمپیوتر, not رایانه), not Iranian Persian.',
+  'fr-CA': 'Use Canadian French as in Quebec software (courriel, clavarder, magasiner), not the French of France.',
+  he: 'Use modern Hebrew without vowel points.',
+  ht: 'Write Haitian Creole (Kreyòl), not French.',
+  hy: 'Write Eastern Armenian.',
+  jv: 'Write Javanese in the Latin alphabet, in a neutral polite register, not Indonesian.',
+  kk: 'Write Kazakh in Cyrillic, not Russian.',
+  ku: 'Write Northern Kurdish (Kurmanji) in the Latin alphabet, not Sorani or Turkish.',
+  ky: 'Write Kyrgyz in Cyrillic, not Kazakh or Russian.',
+  lo: 'Write Lao, not Thai.',
+  mn: 'Write Mongolian in Cyrillic.',
+  ms: 'Use Standard Malay (Malaysia), not Indonesian.',
+  my: 'Write Burmese in Unicode, never the Zawgyi encoding.',
+  nb: 'Use Norwegian Bokmål, not Nynorsk or Danish.',
+  ne: 'Write Nepali, not Hindi.',
+  pa: 'Write Punjabi in Gurmukhi, not Hindi.',
+  'pa-PK': 'Write Punjabi in Shahmukhi, the Arabic script of Pakistan, not Urdu.',
+  ps: 'Write Pashto, not Persian or Urdu.',
+  'pt-BR': 'Use Brazilian Portuguese.',
+  'pt-PT': 'Use European Portuguese (ecrã, utilizador, ficheiro, telemóvel), not Brazilian Portuguese.',
+  sd: 'Write Sindhi in its Arabic script, not Urdu.',
+  su: 'Write Sundanese in the Latin alphabet, not Indonesian.',
+  tg: 'Write Tajik in Cyrillic, not the Persian script.',
+  tk: 'Write Turkmen in the Latin alphabet, not Turkish.',
+  ug: 'Write Uyghur in its Arabic script, with every vowel written.',
+  ur: 'Write Urdu in Urdu script, not Hindi.',
+  uz: 'Write Uzbek in the Latin alphabet (oʻ and gʻ with U+02BB), not Cyrillic.',
+  'zh-HK': 'Use Traditional Chinese characters with Hong Kong written-Chinese terms (軟件, 數據, 網絡, 用戶); never Simplified characters, never colloquial Cantonese.',
   'zh-Hans': 'Use Simplified Chinese characters and mainland China terminology.',
   'zh-Hant': 'Use Traditional Chinese characters and Taiwan terminology (軟體, 資料, 網路, 程式); never Simplified characters.',
-  'pt-BR': 'Use Brazilian Portuguese.',
-  nb: 'Use Norwegian Bokmål, not Nynorsk or Danish.',
 }
 
 /** A chat model as an `Engine`: one prompt per group, a JSON object back. */

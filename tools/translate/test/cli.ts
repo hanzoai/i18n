@@ -61,3 +61,40 @@ test('a locale the toolkit does not ship is refused before anything is spent', a
   await writeFile(join(dir, 'en-US.json'), JSON.stringify({ About: 'About' }))
   await assert.rejects(run('node', [cli, '--catalogs', dir, '--locales', 'zh-TW'], { env: { ...process.env, HANZO_API_KEY: 'k' } }), /unsupported locale: zh-TW/)
 })
+
+test('a label the engine transliterated is kept as written, and provenance says so', async () => {
+  const server = createServer((req, res) => {
+    let raw = ''
+    req.on('data', (c) => (raw += c))
+    req.on('end', () => {
+      const body = JSON.parse(raw) as { batch: string[] }
+      res.setHeader('content-type', 'application/json')
+      res.end(JSON.stringify({ translations: body.batch.map((s) => ({ text: s.replace('Hanzo', 'ہانزو').replace('Welcome', 'خوش آمدید') })) }))
+    })
+  }).listen(0, '127.0.0.1')
+  await new Promise((r) => server.once('listening', r))
+  try {
+    const dir = await mkdtemp(join(tmpdir(), 'i18n-'))
+    await writeFile(join(dir, 'en-US.json'), JSON.stringify({ 'Hanzo OS': 'Hanzo OS', Welcome: 'Welcome' }))
+    await writeFile(join(dir, 'terms.json'), JSON.stringify({ keep: ['Hanzo'] }))
+    const env = { ...process.env, HANZO_API_KEY: 'k', HANZO_ENDPOINT: `http://127.0.0.1:${(server.address() as AddressInfo).port}` }
+    delete env.TRANSLATION_BASE_URL
+
+    const { stdout } = await run('node', [cli, '--catalogs', dir, '--locales', 'pa-PK', '--terms', join(dir, 'terms.json')], { env })
+    assert.match(stdout, /pa-PK\/catalogs: 2 of 2 \(1 labels kept as written\)/)
+    assert.deepEqual(JSON.parse(await readFile(join(dir, 'pa-PK.json'), 'utf8')), { 'Hanzo OS': 'Hanzo OS', Welcome: 'خوش آمدید' })
+    const runs = JSON.parse(await readFile(join(dir, 'provenance.json'), 'utf8'))['pa-PK'].runs
+    assert.deepEqual(runs.map((r: { model: string; keys: string[] }) => [r.model, r.keys]), [
+      ['translate/quality', ['Welcome']],
+      ['source', ['Hanzo OS']],
+    ])
+  } finally {
+    server.close()
+  }
+})
+
+test('madlad needs the directory of its model', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'i18n-'))
+  await writeFile(join(dir, 'en-US.json'), JSON.stringify({ A: 'A' }))
+  await assert.rejects(run('node', [cli, '--catalogs', dir, '--locales', 'my', '--mode', 'madlad']), /--mode madlad needs --model/)
+})
