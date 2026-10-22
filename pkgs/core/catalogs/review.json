@@ -1,0 +1,5 @@
+{
+  "am": "Machine-translated (halogen-qwen3.8-flash-next), not reviewed. Back-translation found wrong meanings (\"runs\" became \"competitions\", \"Reinforcement learning\" became \"learning done by force\") and English left in parentheses.",
+  "bho": "Machine-translated (halogen-qwen3.8-flash-next), not reviewed. Output mixes Hindi forms into Bhojpuri, and back-translation lost meaning (\"Your profile and how Hanzo looks to you\" came back as \"Your profile icon\").",
+  "ha": "Machine-translated (halogen-qwen3.8-flash-next), not reviewed. Back-translation found an invented verb (\"Hanzawa\" for \"Accelerate\") and wrong meanings (\"Every board and its runs\" came back as \"Every board and its contribution\")."
+}
