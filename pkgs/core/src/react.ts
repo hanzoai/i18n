@@ -14,8 +14,8 @@ import {
 
 import { loadAccountLocale, saveAccountLocale, type Account } from './account.ts'
 import { loaders, type Catalog } from './loaders.ts'
-import { DEFAULT_LOCALE, locales } from './locales.ts'
-import { preferenceKey, translate } from './message.ts'
+import { DEFAULT_LOCALE, OFFERED, locales } from './locales.ts'
+import { PAINTED, preferenceKey, translate } from './message.ts'
 import { direction, resolve } from './resolve.ts'
 
 export type { Account } from './account.ts'
@@ -45,9 +45,6 @@ export interface I18nProviderProps {
   /** Replaces the bundled catalogs, e.g. to serve them from a CDN. */
   loadCatalog?: (code: string) => Promise<Catalog>
 }
-
-/** What a browser's own language may select: everything not waiting for review. */
-const OFFERED = locales.filter((l) => !l.review).map((l) => l.code)
 
 const Context = createContext<I18n>({
   locale: DEFAULT_LOCALE,
@@ -82,7 +79,12 @@ export function I18nProvider({
   const identity = useRef(userId)
   identity.current = userId
 
-  async function select(value: string, persist = true): Promise<void> {
+  /**
+   * Load and show `value`. `save` says where the choice is kept: `account` (a person
+   * chose it: this browser and IAM), `device` (IAM's choice, mirrored so the next load
+   * starts in it), or nowhere (a choice already kept, re-applied).
+   */
+  async function select(value: string, save: 'account' | 'device' | false = 'account'): Promise<void> {
     const locale = resolve(value)
     const request = ++sequence.current
     const owner = identity.current
@@ -97,28 +99,30 @@ export function I18nProvider({
       setState({ locale, messages })
       document.documentElement.lang = locale
       document.documentElement.dir = direction(locale)
-      if (persist) {
-        try {
+      try {
+        // What the document shows is what bootScript paints first on the next load.
+        localStorage.setItem(PAINTED, locale)
+        if (save) {
           localStorage.setItem(preferenceKey(owner), locale)
-        } catch {
-          // Private browsing may refuse storage; the choice still holds for this page.
         }
-        if (owner && account?.token) {
-          const credentials = account
-          writes.current = writes.current
-            .catch(() => {})
-            .then(async () => {
-              if (identity.current !== owner) {
-                return
-              }
-              await saveAccountLocale(credentials, locale, AbortSignal.timeout(10000))
-            })
-            .catch(() => {
-              if (sequence.current === request && identity.current === owner) {
-                setError('Language saved on this device. Account sync failed; select the language again to retry.')
-              }
-            })
-        }
+      } catch {
+        // Private browsing may refuse storage; the choice still holds for this page.
+      }
+      if (save === 'account' && owner && account?.token) {
+        const credentials = account
+        writes.current = writes.current
+          .catch(() => {})
+          .then(async () => {
+            if (identity.current !== owner) {
+              return
+            }
+            await saveAccountLocale(credentials, locale, AbortSignal.timeout(10000))
+          })
+          .catch(() => {
+            if (sequence.current === request && identity.current === owner) {
+              setError('Language saved on this device. Account sync failed; select the language again to retry.')
+            }
+          })
       }
     } catch {
       if (sequence.current === request) {
@@ -163,7 +167,7 @@ export function I18nProvider({
     loadAccountLocale(account, stop.signal)
       .then((locale) => {
         if (locale && sequence.current === before && !stop.signal.aborted) {
-          void select(locale, false)
+          void select(locale, 'device')
         }
       })
       .catch(() => {}) // The device's choice stays usable offline.

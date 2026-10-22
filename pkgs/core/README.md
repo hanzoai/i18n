@@ -31,11 +31,13 @@ or API responses through it. Rendering never calls a model.
 
 - **Choice.** Saved per account in this browser, with a separate signed-out choice;
   other tabs follow. With `account`, it is also read from and written to IAM's
-  `/v1/iam/preferences` (only `locale`), so it follows the person across devices.
+  `/v1/iam/preferences` (only `locale`), so it follows the person across devices, and
+  the account's choice is kept in this browser so the next load opens in it.
   A failed save keeps the device choice and reports it; a failed catalog load keeps
   the current language and offers a retry.
 - **First visit.** Signed out, the browser's languages pick one; signed in,
-  `initialLocale` (English). A server prerender is English and hydrates.
+  `initialLocale` (English). A server prerender is English and hydrates; with
+  `bootScript` in the head, `<html lang dir>` is right before the first paint.
 - **Review.** Locales in `catalogs/review.json` are machine translations waiting for
   a native reader. They load by code, so a person who chose one keeps it, but the
   picker does not offer them and a browser language does not select them.
@@ -54,6 +56,21 @@ or API responses through it. Rendering never calls a model.
   `word-break: normal` and let the browser's dictionary break lines; their stacked marks
   want `line-height` of 1.7 or more. Georgian has no letter case: do not
   `text-transform: uppercase` it.
+
+### Before the first paint
+
+A static export arrives in English. Put `bootScript()` first in the head and the page
+opens in the reader's direction, before any bundle runs:
+
+```tsx
+import { bootScript } from '@hanzo/i18n/boot'
+// the root layout: first in <head>
+<html lang="en-US" suppressHydrationWarning><head><script dangerouslySetInnerHTML={{ __html: bootScript() }} />…</head>…</html>
+```
+
+It sets `<html lang dir>` to what the provider last showed in this browser, or else the
+browser's languages negotiated as `resolve` does, and touches nothing else. About 1.5 KB,
+no React, safe in a server component.
 
 ### Send sentences, not fragments
 

@@ -72,11 +72,18 @@ function match(tag: string, supported: readonly string[]): string | undefined {
     return undefined
   }
   const sameScript = want.script ? sameLanguage.filter((s) => parse(s).script === want.script) : []
-  const near = sameScript.length > 0 ? sameScript : sameLanguage
-  const own = parse(want.language).region
+  return pick(sameScript.length > 0 ? sameScript : sameLanguage, want.region, parse(want.language).region)
+}
+
+/**
+ * Step 2's order, among tags of one language (and script, when any shares it): the
+ * tag stating `wanted` (a region), the variant that serves it, the variant with no
+ * region, the language's `own` region, the first. `boot.ts` tabulates the answers.
+ */
+export function pick(near: readonly string[], wanted: string | undefined, own: string | undefined): string | undefined {
   return (
-    near.find((s) => want.region && region(s) === want.region) ??
-    near.find((s) => want.region && SERVES[s]?.includes(want.region)) ??
+    near.find((s) => wanted && region(s) === wanted) ??
+    near.find((s) => wanted && SERVES[s]?.includes(wanted)) ??
     near.find((s) => !region(s)) ??
     near.find((s) => own && region(s) === own) ??
     near[0]
@@ -90,7 +97,7 @@ function match(tag: string, supported: readonly string[]): string | undefined {
  * Traditional Chinese; Arabic follows its dialect areas, Gulf, Maghreb and Levant.
  * A region whose own variant ships is matched before this is asked.
  */
-const SERVES: Readonly<Record<string, readonly string[]>> = {
+export const SERVES: Readonly<Record<string, readonly string[]>> = {
   'es-419': ['AR', 'BO', 'BR', 'BZ', 'CL', 'CO', 'CR', 'CU', 'DO', 'EC', 'GT', 'HN', 'MX', 'NI', 'PA', 'PE', 'PR', 'PY', 'SV', 'US', 'UY', 'VE'],
   'pt-PT': ['AO', 'CH', 'CV', 'FR', 'GQ', 'GW', 'LU', 'MO', 'MZ', 'ST', 'TL'],
   'zh-HK': ['MO'],
@@ -100,7 +107,7 @@ const SERVES: Readonly<Record<string, readonly string[]>> = {
 }
 
 /** The region a tag states, not one `maximize` infers: `ar` names no region, though it maximizes to Egypt. */
-function region(tag: string): string | undefined {
+export function region(tag: string): string | undefined {
   try {
     return new Intl.Locale(tag).region
   } catch {
@@ -115,7 +122,7 @@ function region(tag: string): string | undefined {
  * maximizes to Arabic script and finds `pa-PK`. (`tl` → `fil`, `in` → `id`, `iw` →
  * `he` and `prs` → `fa-AF` `Intl` canonicalizes itself.)
  */
-const MACRO: Record<string, string> = { no: 'nb', lah: 'pa' }
+export const MACRO: Readonly<Record<string, string>> = { no: 'nb', lah: 'pa' }
 
 /**
  * The language, script and region of a tag, with script and region filled in
@@ -127,7 +134,7 @@ const MACRO: Record<string, string> = { no: 'nb', lah: 'pa' }
  * Chinese, correct for everything else, and never an exception thrown at a person
  * trying to read a page.
  */
-function parse(tag: string): { language: string; script?: string; region?: string } {
+export function parse(tag: string): { language: string; script?: string; region?: string } {
   try {
     const loc = new Intl.Locale(tag).maximize()
     return { language: MACRO[loc.language] ?? loc.language, script: loc.script, region: loc.region }
