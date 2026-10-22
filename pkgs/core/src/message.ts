@@ -52,9 +52,29 @@ export function translate(
  * value takes its own direction (its first strong letter, or left-to-right when it
  * has none, as a number does) and the prose around it is unaffected. Invisible, and
  * what `<bdi>` is in plain text, so it holds in an attribute, a title or a label.
+ *
+ * Text that is already one isolate is returned as it is, so a figure `format` set
+ * apart and then handed to `t` carries one pair of marks, not two.
  */
 export function isolate(text: string): string {
-  return `⁨${text}⁩`
+  return isolated(text) ? text : `\u2068${text}\u2069`
+}
+
+/** Whether `text` is one first-strong isolate from its first character to its last. */
+function isolated(text: string): boolean {
+  if (!text.startsWith('\u2068') || !text.endsWith('\u2069')) {
+    return false
+  }
+  let depth = 0
+  for (let i = 0; i < text.length; i++) {
+    const c = text.charCodeAt(i)
+    if (c >= 0x2066 && c <= 0x2068) {
+      depth++
+    } else if (c === 0x2069 && --depth === 0 && i < text.length - 1) {
+      return false
+    }
+  }
+  return depth === 0
 }
 
 /**

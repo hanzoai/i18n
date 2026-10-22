@@ -89,18 +89,60 @@ t('By continuing, you agree to the {terms}.', {
 
 A figure is an argument too, never concatenated: `t('{n} tokens a second', { n })`.
 
+### A server component: `<T>`
+
+`<T>` is `t` as an element, so a server component (which cannot call a hook) hands
+its English to the client to translate:
+
+```tsx
+import { T } from '@hanzo/i18n/react'
+
+<T>Plans that grow with you.</T>
+<T values={{ n: <strong>{count}</strong> }}>{'{n} tasks left'}</T>
+```
+
+The children are the key, exactly as the compiler hands them over: JSX text written
+over several lines is one line joined by single spaces, entities decoded. A sentence
+with arguments is a string in braces, since `{n}` in JSX text would be an expression.
+`<T>Hello {name}</T>` gives `T` a list, not a key; write `values` instead.
+
+### Figures, money, dates and lists
+
+`format` is `Intl` at the reader's locale. Options are Intl's, passed through, so in
+English every helper writes what `toLocaleString('en-US', options)` writes:
+
+```tsx
+const { t, format } = useI18n()
+format.number(1234567)                        // 1,234,567 · ١٬٢٣٤٬٥٦٧ in ar-EG
+format.money(1234.5, 'USD')                   // $1,234.50
+format.percent(0.929, { maximumFractionDigits: 1 })  // 92.9%
+format.date(iso, { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })  // Oct 22, 2026
+format.relative(updatedAt)                    // 3 minutes ago · { numeric: 'auto' } for yesterday
+format.list(['Chat', 'Dev', 'Kai'])           // Chat, Dev, and Kai
+t('{n} tokens a second', { n: format.number(rate, { maximumFractionDigits: 0 }) })
+```
+
+The locale decides its digits and calendar as Intl does: `ar` writes Latin digits,
+`ar-EG` and `ar-SA` Arabic-Indic, `fa` Persian digits and the solar calendar. A
+caller who needs otherwise says so in `options` (`numberingSystem`, `calendar`).
+`relative` picks the largest unit the span fills, from `now` (the clock by default),
+or the `unit` asked for. A moment `Date` cannot read throws a `RangeError`, never the
+words "Invalid Date". Outside React, `format(locale)` from `@hanzo/i18n` is the same.
+
 ### Figures in right-to-left prose
 
 In a right-to-left locale each argument is isolated: a string argument is wrapped in
 Unicode's first-strong isolate (`isolate`), an element in `<bdi>`. So `1,150–1,400`
-still reads 1,150 then 1,400, and `~43 tok/s` does not become `tok/s 43~`. A figure
-drawn outside any sentence needs the same: mark it `data-i18n-ltr` (on an inline
-element) or wrap it in `<bdi>`.
+still reads 1,150 then 1,400, and `~43 tok/s` does not become `tok/s 43~`. Everything
+`format` writes is isolated the same way, a list item by item, so Latin names in an
+Arabic list read right to left; handed to `t`, it is not isolated twice. A figure
+drawn outside any sentence and not from `format` needs the same: mark it
+`data-i18n-ltr` (on an inline element) or wrap it in `<bdi>`.
 
 ### Copy written as data
 
 A menu label written in a data file is translated where it is drawn. Mark it with
-`phrase` so the extractor finds it; `phrase` returns its argument:
+`phrase` so the extractor finds it (it reads `t(…)`, `phrase(…)` and `<T>`); `phrase` returns its argument:
 
 ```ts
 import { phrase } from '@hanzo/i18n'
