@@ -3,9 +3,9 @@ import { test } from 'node:test'
 
 import { DEFAULT_LOCALE, SUPPORTED_LOCALES, direction, locales, preferenceKey, translate } from '../src/index.ts'
 
-test('36 locales, each a canonical tag with a name in its own script', () => {
-  assert.equal(locales.length, 36)
-  assert.equal(new Set(SUPPORTED_LOCALES).size, 36)
+test('79 locales, each a canonical tag with a name in its own script', () => {
+  assert.equal(locales.length, 79)
+  assert.equal(new Set(SUPPORTED_LOCALES).size, 79)
   assert.deepEqual(SUPPORTED_LOCALES, locales.map((l) => l.code))
   for (const l of locales) {
     assert.equal(Intl.getCanonicalLocales(l.code)[0], l.code)
@@ -14,18 +14,40 @@ test('36 locales, each a canonical tag with a name in its own script', () => {
   assert.ok(SUPPORTED_LOCALES.includes(DEFAULT_LOCALE))
 })
 
-test('Chinese ships in both scripts and Spanish in both regions', () => {
-  for (const code of ['zh-Hans', 'zh-Hant', 'es-ES', 'es-419', 'ar']) {
+test('regional variants ship beside their language', () => {
+  for (const code of ['zh-Hans', 'zh-Hant', 'zh-HK', 'es-ES', 'es-419', 'es-MX', 'es-AR', 'pt-BR', 'pt-PT', 'fr-FR', 'fr-CA', 'ar', 'ar-EG', 'ar-SA', 'ar-MA', 'ar-LB', 'fa', 'fa-AF', 'pa', 'pa-PK']) {
     assert.ok(SUPPORTED_LOCALES.includes(code as never), code)
   }
 })
 
-test('Arabic is right-to-left and nothing else is', () => {
-  assert.equal(direction('ar'), 'rtl')
-  assert.equal(direction('ar-AE'), 'rtl')
-  for (const l of locales.filter((l) => l.code !== 'ar')) {
-    assert.equal(l.dir, 'ltr', l.code)
-    assert.equal(direction(l.code), 'ltr', l.code)
+test('the picker lists languages by English name', () => {
+  const names = locales.map((l) => l.englishName)
+  assert.deepEqual(names, [...names].sort((a, b) => a.localeCompare(b, 'en')))
+})
+
+/** Scripts written right to left, by their ISO 15924 code. */
+const RTL = new Set(['Adlm', 'Arab', 'Hebr', 'Mand', 'Nkoo', 'Rohg', 'Samr', 'Syrc', 'Thaa'])
+
+test('a locale is right-to-left exactly when its script is', () => {
+  // The script comes from the tag (`ur` → Arab, `pa-PK` → Arab, `ku` → Latn), not
+  // from a list kept beside the registry, so a new locale cannot ship the wrong way.
+  for (const l of locales) {
+    const script = new Intl.Locale(l.code).maximize().script ?? ''
+    assert.equal(l.dir, RTL.has(script) ? 'rtl' : 'ltr', `${l.code} (${script})`)
+    assert.equal(direction(l.code), l.dir, l.code)
+  }
+  assert.deepEqual(
+    locales.filter((l) => l.dir === 'rtl').map((l) => l.code).sort(),
+    ['ar', 'ar-EG', 'ar-LB', 'ar-MA', 'ar-SA', 'ckb', 'fa', 'fa-AF', 'he', 'pa-PK', 'ps', 'sd', 'ug', 'ur'],
+  )
+})
+
+test('a request resolves to the direction of the locale it reaches', () => {
+  for (const tag of ['ar-AE', 'fa-IR', 'prs', 'iw', 'he-IL', 'ur-IN', 'ckb-IR', 'pa-Arab', 'pnb']) {
+    assert.equal(direction(tag), 'rtl', tag)
+  }
+  for (const tag of ['ku', 'kmr', 'pa-IN', 'en-GB', 'zh-HK']) {
+    assert.equal(direction(tag), 'ltr', tag)
   }
   assert.equal(direction(null), 'ltr')
 })

@@ -78,7 +78,9 @@ test('a caller may state its own supported set', () => {
 test('real browsers', () => {
   assert.equal(negotiate('en-US,en;q=0.9'), 'en-US')
   assert.equal(negotiate('zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7'), 'zh-Hant')
-  assert.equal(negotiate('zh-HK,zh;q=0.9,en;q=0.8'), 'zh-Hant')
+  assert.equal(negotiate('zh-HK,zh;q=0.9,en;q=0.8'), 'zh-HK')
+  assert.equal(negotiate('es-CO,es;q=0.9,en;q=0.8'), 'es-419')
+  assert.equal(negotiate('fa-IR,fa;q=0.9,en;q=0.8'), 'fa')
   assert.equal(negotiate('pt-BR,pt;q=0.9,en-US;q=0.8'), 'pt-BR')
 })
 

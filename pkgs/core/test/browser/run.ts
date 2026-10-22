@@ -1,6 +1,6 @@
 /**
- * The provider and picker in a real browser: 36 languages offered minus those
- * waiting for review, Arabic right-to-left, a choice that survives reload and
+ * The provider and picker in a real browser: every language offered minus those
+ * waiting for review, every right-to-left locale turning the page, a choice that survives reload and
  * stays with its account, a failed load that keeps the current language, and a
  * review locale that is honoured by code but never offered or auto-selected.
  *
@@ -16,7 +16,7 @@ import { chromium } from 'playwright-core'
 
 import { preferenceKey } from '../../src/message.ts'
 import { REVIEW } from '../../src/review.ts'
-import { SUPPORTED_LOCALES } from '../../src/locales.ts'
+import { SUPPORTED_LOCALES, locales } from '../../src/locales.ts'
 
 let origin = 'http://127.0.0.1'
 const bundle = await build({
@@ -55,6 +55,13 @@ try {
 
   await tab.goto(origin)
   assert.equal((await options()).length, offered)
+  // rtl.css answers to :dir(rtl), so a right-to-left region of a left-to-right page is held too.
+  const style = (selector: string) =>
+    tab.locator(selector).evaluate((e) => [getComputedStyle(e).direction, getComputedStyle(e).unicodeBidi, getComputedStyle(e).transform])
+  assert.equal(await html.getAttribute('dir'), 'ltr')
+  assert.deepEqual((await style('#inner')).slice(0, 2), ['ltr', 'isolate'])
+  assert.equal((await style('#mirrored'))[2], 'matrix(-1, 0, 0, 1, 0, 0)')
+  assert.equal((await style('#plain'))[2], 'none')
   for (const code of REVIEW) {
     assert.ok(!(await options()).includes(code), `${code} is under review and not offered`)
   }
@@ -66,7 +73,7 @@ try {
   assert.equal(await tab.locator('aside').getAttribute('data-side'), 'right')
   // rtl.css: machine-readable text keeps its own order inside a right-to-left page.
   assert.deepEqual(
-    await tab.locator('code').evaluate((e) => [getComputedStyle(e).direction, getComputedStyle(e).unicodeBidi]),
+    await tab.locator('main > code').evaluate((e) => [getComputedStyle(e).direction, getComputedStyle(e).unicodeBidi]),
     ['ltr', 'isolate'],
   )
 
@@ -109,6 +116,20 @@ try {
     await visitor.close()
   }
 
+  // Every right-to-left locale, offered or under review, turns the page around and keeps code left-to-right.
+  const rtl = locales.filter((l) => l.dir === 'rtl').map((l) => l.code)
+  await tab.goto(`${origin}/?user=erin&review`)
+  await tab.getByRole('heading', { name: 'Welcome' }).waitFor()
+  for (const code of rtl) {
+    await select.selectOption(code)
+    await tab.waitForFunction((c) => document.documentElement.lang === c, code)
+    assert.equal(await html.getAttribute('dir'), 'rtl', code)
+    assert.deepEqual((await style('main > code')).slice(0, 2), ['ltr', 'isolate'], code)
+    assert.equal((await style('#plain'))[2], 'matrix(-1, 0, 0, 1, 0, 0)', code)
+  }
+  await select.selectOption('en-US')
+  await tab.waitForFunction(() => document.documentElement.dir === 'ltr')
+
   // A browser set to an offered language is.
   const reader = await browser.newPage({ locale: 'ar-EG' })
   await reader.goto(`${origin}/?user=guest`)
@@ -117,7 +138,8 @@ try {
 
   console.log(
     `PASS: ${offered} offered (${REVIEW.length} under review: ${REVIEW.join(', ') || 'none'}), Arabic RTL, reload, ` +
-      'account isolation, failed load keeps the language, review locale kept by code, browser language negotiation',
+      'account isolation, failed load keeps the language, review locale kept by code, browser language negotiation, ' +
+      `${rtl.length} right-to-left locales (${rtl.join(', ')}), :dir(rtl) inside a left-to-right page`,
   )
 } finally {
   await browser.close()

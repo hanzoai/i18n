@@ -22,9 +22,9 @@ node --input-type=module -e "
   const core = await import('@hanzo/i18n')
   const server = await import('@hanzo/i18n/server')
   const native = await import('@hanzo/i18n/native')
-  if (core.locales.length !== 36) throw new Error('registry: ' + core.locales.length)
+  if (core.locales.length !== 79) throw new Error('registry: ' + core.locales.length)
   if (core.resolve('zh-TW') !== 'zh-Hant' || core.direction('ar') !== 'rtl') throw new Error('negotiation')
-  if (server.negotiate('es-MX,es;q=0.9') !== 'es-419' || typeof native.detect !== 'function') throw new Error('subpaths')
+  if (server.negotiate('es-CO,es;q=0.9') !== 'es-419' || typeof native.detect !== 'function') throw new Error('subpaths')
   console.log('node: @hanzo/i18n, /server, /native import')
 "
 
@@ -36,7 +36,7 @@ JS
 npx esbuild entry.js --bundle --splitting --format=esm --platform=browser --outdir=out --log-level=warning
 chunks=$(ls out/*.js | wc -l)
 [ -s out/entry.css ] || { echo "rtl.css did not bundle" >&2; exit 1; }
-[ "$chunks" -ge 36 ] || { echo "expected the entry plus 35 lazy catalog chunks, got $chunks files" >&2; exit 1; }
+[ "$chunks" -ge 79 ] || { echo "expected the entry plus 78 lazy catalog chunks, got $chunks files" >&2; exit 1; }
 echo "bundle: @hanzo/i18n/react and rtl.css, $chunks chunks"
 
 cat > check.ts <<'TS'

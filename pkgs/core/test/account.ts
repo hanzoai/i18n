@@ -23,7 +23,7 @@ test('IAM sync reads with an empty merge and writes only the locale', async () =
   const calls = serve({ status: 'ok', data: { locale: 'ar', appearance: { density: 'compact' } } })
   const account = { base: 'https://identity.example/', token: 'test-only' }
   assert.equal(await loadAccountLocale(account), 'ar')
-  await saveAccountLocale(account, 'ar-AE')
+  await saveAccountLocale(account, 'ar-IQ') // saved as the locale it reaches
   assert.equal(calls[0].body, '{}')
   assert.deepEqual(JSON.parse(String(calls[1].body)), { locale: 'ar' })
   assert.equal(calls[1].credentials, 'omit')

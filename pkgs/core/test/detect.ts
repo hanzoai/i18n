@@ -7,12 +7,13 @@ import { detect, preferred } from '../src/native.ts'
 test('a device preference becomes a locale we ship', () => {
   assert.equal(detect({ locales: () => ['ja-JP'] }), 'ja-JP')
   assert.equal(detect({ locales: () => ['en-GB'] }), 'en-US')
-  assert.equal(detect({ locales: () => ['zh-Hant-HK'] }), 'zh-Hant')
+  assert.equal(detect({ locales: () => ['zh-Hant-HK'] }), 'zh-HK')
+  assert.equal(detect({ locales: () => ['zh-Hant-TW'] }), 'zh-Hant')
 })
 
 test('the phone answers with a list, and order is preference', () => {
   // iOS hands back AppleLanguages, which is the whole ordered list.
-  assert.equal(detect({ locales: () => ['fr-CA', 'en-US'] }), 'fr-FR')
+  assert.equal(detect({ locales: () => ['fr-BE', 'en-US'] }), 'fr-FR')
 })
 
 test('no device is the default, not a crash', () => {

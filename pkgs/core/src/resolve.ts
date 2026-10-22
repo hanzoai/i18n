@@ -14,8 +14,12 @@ import { DEFAULT_LOCALE, SUPPORTED_LOCALES, locales, type SupportedLocale } from
  *
  *   1. the exact tag, case-insensitively — `zh-hant` is `zh-Hant`
  *   2. same language AND same script — `zh-TW` finds `zh-Hant`, never `zh-Hans`;
- *      among those, the same region first — `es` (Spain, maximized) finds `es-ES`,
- *      `es-MX` finds `es-419` by registry order
+ *      `pa-Arab` finds `pa-PK`, never Gurmukhi `pa`. Among those, in order:
+ *      a. the same region — `es` (Spain, maximized) finds `es-ES`
+ *      b. the variant that serves that region (`SERVES`) — `es-CO` finds `es-419`,
+ *         `pt-AO` `pt-PT`, `zh-MO` `zh-HK`, `ar-AE` `ar-SA`
+ *      c. the variant with no region — `ar-IQ` finds `ar`, `fa-IR` `fa`
+ *      d. the language's own region — `fr-BE` finds `fr-FR`, as bare `fr` would
  *   3. same language — `en-GB` finds `en-US`
  *   4. the default
  *
@@ -46,7 +50,7 @@ export function resolve(
   return DEFAULT_LOCALE
 }
 
-/** Which way a locale's text runs, after negotiating it. Arabic is `rtl`; so is any later RTL entry. */
+/** Which way a locale's text runs, after negotiating it: `rtl` for every locale in Arabic or Hebrew script. */
 export function direction(requested: string | null | undefined): 'ltr' | 'rtl' {
   const code = resolve(requested)
   return locales.find((l) => l.code === code)?.dir ?? 'ltr'
@@ -69,15 +73,49 @@ function match(tag: string, supported: readonly string[]): string | undefined {
   }
   const sameScript = want.script ? sameLanguage.filter((s) => parse(s).script === want.script) : []
   const near = sameScript.length > 0 ? sameScript : sameLanguage
-  return near.find((s) => want.region && parse(s).region === want.region) ?? near[0]
+  const own = parse(want.language).region
+  return (
+    near.find((s) => want.region && region(s) === want.region) ??
+    near.find((s) => want.region && SERVES[s]?.includes(want.region)) ??
+    near.find((s) => !region(s)) ??
+    near.find((s) => own && region(s) === own) ??
+    near[0]
+  )
 }
 
 /**
- * `no` names the Norwegian macrolanguage, which every OS that sends it means as
- * Bokmål; CLDR leaves it as is, so `Intl` cannot say so for us. (`tl` → `fil` and
- * `in` → `id` it does canonicalize.)
+ * Regions read in a variant other than the one their language falls to. Spanish and
+ * Portuguese follow CLDR's parent locales (`es-419` is the parent of every American
+ * Spanish, `pt-PT` of every Portuguese outside Brazil); Macau reads Hong Kong's
+ * Traditional Chinese; Arabic follows its dialect areas, Gulf, Maghreb and Levant.
+ * A region whose own variant ships is matched before this is asked.
  */
-const MACRO: Record<string, string> = { no: 'nb' }
+const SERVES: Readonly<Record<string, readonly string[]>> = {
+  'es-419': ['AR', 'BO', 'BR', 'BZ', 'CL', 'CO', 'CR', 'CU', 'DO', 'EC', 'GT', 'HN', 'MX', 'NI', 'PA', 'PE', 'PR', 'PY', 'SV', 'US', 'UY', 'VE'],
+  'pt-PT': ['AO', 'CH', 'CV', 'FR', 'GQ', 'GW', 'LU', 'MO', 'MZ', 'ST', 'TL'],
+  'zh-HK': ['MO'],
+  'ar-SA': ['AE', 'BH', 'KW', 'OM', 'QA', 'YE'],
+  'ar-MA': ['DZ', 'EH', 'LY', 'MR', 'TN'],
+  'ar-LB': ['JO', 'PS', 'SY'],
+}
+
+/** The region a tag states, not one `maximize` infers: `ar` names no region, though it maximizes to Egypt. */
+function region(tag: string): string | undefined {
+  try {
+    return new Intl.Locale(tag).region
+  } catch {
+    return undefined
+  }
+}
+
+/**
+ * Languages `Intl` leaves under a name we do not ship. `no` is the Norwegian
+ * macrolanguage, which every OS that sends it means as Bokmål. `lah` (Lahnda, what
+ * `pnb` canonicalizes to) is the Punjabi of Pakistan, written in Shahmukhi, so it
+ * maximizes to Arabic script and finds `pa-PK`. (`tl` → `fil`, `in` → `id`, `iw` →
+ * `he` and `prs` → `fa-AF` `Intl` canonicalizes itself.)
+ */
+const MACRO: Record<string, string> = { no: 'nb', lah: 'pa' }
 
 /**
  * The language, script and region of a tag, with script and region filled in
