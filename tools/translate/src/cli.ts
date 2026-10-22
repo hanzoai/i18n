@@ -1,63 +1,93 @@
 #!/usr/bin/env node
 /**
- * Fill in the locales a product is missing, using Hanzo's own models.
+ * Fill in the locales a product is missing.
  *
  *   HANZO_API_KEY=$(hanzo kms get /i18n/translator) i18n-translate \
  *     --source ./translations/source --translations ./translations/translations
+ *   HANZO_API_KEY=… i18n-translate --catalogs ./catalogs --terms ./terms.json
+ *   TRANSLATION_BASE_URL=http://127.0.0.1:8733/v1 TRANSLATION_MODEL=jais3-ar \
+ *     i18n-translate --catalogs ./catalogs --locales ar
  *
- *   --source <dir>        the reviewed English
+ *   --source <dir>        the reviewed English, one directory per namespace
  *   --translations <dir>  where the other locales go
+ *   --catalogs <dir>      instead of both: one flat directory, en-US.json and <locale>.json;
+ *                         each run that writes is recorded in <dir>/provenance.json
  *   --namespaces a,b      default: every namespace under --source
  *   --locales a,b         default: every locale the toolkit ships
- *   --model <id>          default: zen5
- *   --endpoint <url>      default: api.hanzo.ai
+ *   --terms <file>        { "keep": [protected names], "brands": [...] }, as for i18n-validate
+ *   --mode translate|chat default translate: POST /v1/translate; chat: /v1/chat/completions
+ *   --tier quality|bulk   the /v1/translate tier, default quality
+ *   --model <id>          chat: default zen5; translate: the quality tier's model, default the org's
+ *   --endpoint <origin>   default https://api.hanzo.ai
+ *   --weights <ref>       recorded in provenance for a pinned artifact (repo@revision/file)
+ *
+ * The key is HANZO_API_KEY. TRANSLATION_BASE_URL instead points chat at a local
+ * OpenAI-compatible /v1 (TRANSLATION_MODEL, optional TRANSLATION_API_KEY,
+ * TRANSLATION_REASONING sent as the template's reasoning_effort, default low).
  */
-import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises'
+import { createHash } from 'node:crypto'
+import { mkdir, readFile, readdir, rename, writeFile } from 'node:fs/promises'
 import { dirname, resolve } from 'node:path'
 import { parseArgs } from 'node:util'
-import { DEFAULT_LOCALE, SUPPORTED_LOCALES, contents, source, translation } from '@hanzo/i18n'
+import { DEFAULT_LOCALE, SUPPORTED_LOCALES, catalog, contents, source, translation, type Terms } from '@hanzo/i18n'
 
-import { ENDPOINT, MODEL, chat } from './chat.ts'
-import { fill, missing, type Strings } from './fill.ts'
+import { MODEL, ORIGIN, chat } from './chat.ts'
+import { asking, fill, missing, type Engine, type Strings } from './fill.ts'
+import { service, type Tier } from './service.ts'
 
 const { values } = parseArgs({
   options: {
     source: { type: 'string' },
     translations: { type: 'string' },
+    catalogs: { type: 'string' },
     namespaces: { type: 'string' },
     locales: { type: 'string' },
-    model: { type: 'string', default: process.env.HANZO_MODEL ?? MODEL },
-    endpoint: { type: 'string', default: process.env.HANZO_ENDPOINT ?? ENDPOINT },
+    terms: { type: 'string' },
+    mode: { type: 'string', default: 'translate' },
+    tier: { type: 'string', default: 'quality' },
+    model: { type: 'string', default: process.env.HANZO_MODEL },
+    endpoint: { type: 'string', default: process.env.HANZO_ENDPOINT ?? ORIGIN },
+    weights: { type: 'string' },
   },
 })
 
-if (!values.source || !values.translations) {
-  throw new Error('required: --source <dir> --translations <dir>')
+if (!values.catalogs === !(values.source && values.translations)) {
+  throw new Error('required: --source <dir> --translations <dir>, or --catalogs <dir>')
 }
-const key = process.env.HANZO_API_KEY
-if (!key) {
-  throw new Error('HANZO_API_KEY is not set')
+if (values.mode !== 'translate' && values.mode !== 'chat') {
+  throw new Error(`--mode is translate or chat, not ${values.mode}`)
+}
+if (values.tier !== 'quality' && values.tier !== 'bulk') {
+  throw new Error(`--tier is quality or bulk, not ${values.tier}`)
 }
 
-const english = resolve(values.source)
-const out = resolve(values.translations)
-const namespaces = values.namespaces ? list(values.namespaces) : await under(english)
+// One namespace in a flat directory, or one directory per namespace.
+const flat = values.catalogs ? resolve(values.catalogs) : undefined
+const english = resolve(values.source ?? '.')
+const out = resolve(values.translations ?? '.')
+const namespaces = flat ? ['catalogs'] : values.namespaces ? list(values.namespaces) : await under(english)
+const sourceOf = (ns: string) => (flat ? catalog(flat, DEFAULT_LOCALE) : source(english, ns))
+const translationOf = (locale: string, ns: string) => (flat ? catalog(flat, locale) : translation(out, locale, ns))
 const locales = values.locales ? known(list(values.locales)) : [...SUPPORTED_LOCALES]
-const model = chat(values.model, values.endpoint, key)
+const terms: Terms = values.terms ? (JSON.parse(await readFile(resolve(values.terms), 'utf8')) as Terms) : {}
+const { engine, label } = connect()
+
+const provenance: Provenance = flat ? await provenanceIn(flat) : {}
 
 let failed = 0
 for (const namespace of namespaces) {
-  const strings = await read(source(english, namespace))
+  const strings = await read(sourceOf(namespace))
   if (Object.keys(strings).length === 0) {
     console.log(`${namespace}: no source strings`)
     continue
   }
+  const sourceSha256 = createHash('sha256').update(JSON.stringify(strings)).digest('hex')
 
   for (const locale of locales) {
     if (locale === DEFAULT_LOCALE) {
       continue
     }
-    const path = translation(out, locale, namespace)
+    const path = translationOf(locale, namespace)
     const existing = await read(path)
     const owed = Object.keys(missing(strings, existing)).length
     if (owed === 0) {
@@ -65,10 +95,21 @@ for (const namespace of namespaces) {
     }
 
     try {
-      const { added, refused } = await fill(strings, existing, locale, model)
+      const { added, refused } = await fill(strings, existing, locale, engine, terms)
       if (Object.keys(added).length > 0) {
         await mkdir(dirname(path), { recursive: true })
         await writeFile(path, contents({ ...existing, ...added }), 'utf8')
+        if (flat) {
+          const entry = (provenance[locale] ??= { review: 'machine-translated; native-speaker review pending', runs: [] })
+          entry.runs.push({
+            model: label,
+            ...(values.weights && { weights: values.weights }),
+            generatedAt: new Date().toISOString(),
+            sourceSha256,
+            keys: Object.keys(added),
+          })
+          await save(`${flat}/provenance.json`, `${JSON.stringify(provenance, null, 2)}\n`)
+        }
       }
       console.log(`${locale}/${namespace}: ${Object.keys(added).length} of ${owed}`)
       if (refused.length > 0) {
@@ -78,8 +119,8 @@ for (const namespace of namespaces) {
         console.log(`  ${refused.length} came back wrong: ${refused.join(', ')}`)
       }
     } catch (error) {
-      // One locale's model call failing is not a reason to abandon the other
-      // twelve; the exit code still says the run was not complete.
+      // One locale's model call failing is not a reason to abandon the others;
+      // the exit code still says the run was not complete.
       failed++
       console.error(`${locale}/${namespace}: ${(error as Error).message}`)
     }
@@ -88,6 +129,56 @@ for (const namespace of namespaces) {
 
 if (failed > 0) {
   process.exitCode = 1
+}
+
+/** The engine this run asks, and the name its provenance records. */
+function connect(): { engine: Engine; label: string } {
+  const local = process.env.TRANSLATION_BASE_URL
+  if (local) {
+    const model = process.env.TRANSLATION_MODEL ?? values.model
+    if (!model) {
+      throw new Error('TRANSLATION_BASE_URL needs TRANSLATION_MODEL')
+    }
+    const endpoint = `${local.replace(/\/+$/, '')}/chat/completions`
+    const reasoning = process.env.TRANSLATION_REASONING ?? 'low'
+    const extra = { chat_template_kwargs: { enable_thinking: false, reasoning_effort: reasoning } }
+    return { engine: asking(chat(model, endpoint, process.env.TRANSLATION_API_KEY, extra), terms), label: model }
+  }
+
+  const key = process.env.HANZO_API_KEY
+  if (!key) {
+    throw new Error('HANZO_API_KEY is not set (or set TRANSLATION_BASE_URL for a local endpoint)')
+  }
+  const origin = values.endpoint.replace(/\/+$/, '')
+  if (values.mode === 'chat') {
+    const model = values.model ?? MODEL
+    return { engine: asking(chat(model, `${origin}/v1/chat/completions`, key), terms), label: model }
+  }
+  const tier = values.tier as Tier
+  return { engine: service(origin, key, tier, terms, values.model), label: `translate/${tier}${values.model ? `/${values.model}` : ''}` }
+}
+
+/**
+ * Per locale, every run that wrote to it: which model, when, against which
+ * English (its SHA-256), and the keys it wrote. A message's provenance is the
+ * last run listing it; a run with no `keys` covers whatever no later run lists.
+ */
+type Provenance = Record<string, { review: string; runs: Record<string, unknown>[] }>
+
+async function provenanceIn(dir: string): Promise<Provenance> {
+  let text: string
+  try {
+    text = await readFile(`${dir}/provenance.json`, 'utf8')
+  } catch {
+    return {}
+  }
+  return parse(text, `${dir}/provenance.json`) as unknown as Provenance
+}
+
+/** Written whole or not at all, so an interrupted run never leaves half a file. */
+async function save(path: string, text: string): Promise<void> {
+  await writeFile(`${path}.tmp`, text, 'utf8')
+  await rename(`${path}.tmp`, path)
 }
 
 function list(flag: string): string[] {
@@ -117,7 +208,7 @@ async function under(dir: string): Promise<string[]> {
  *
  * A bare `JSON.parse` throws "Expected double-quoted property name at position
  * 106", which is true and useless to the person who has to fix it: a run walks
- * fourteen locales across several namespaces, so the one thing the message has
+ * every locale across several namespaces, so the one thing the message has
  * to carry is the path.
  */
 function parse(text: string, path: string): Strings {

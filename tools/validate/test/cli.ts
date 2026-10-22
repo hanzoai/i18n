@@ -60,3 +60,34 @@ test('the forbid list comes from the product, not from here', async () => {
   assert.match(failure?.stderr ?? '', /en-US\/exchange a: holds "Lux Wallet"/)
   assert.match(failure?.stderr ?? '', /ja-JP\/exchange a: holds "Lux Wallet"/)
 })
+
+test('a flat catalog directory is gated the same way, with the product’s protected names', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'i18n-'))
+  await writeFile(join(dir, 'en-US.json'), JSON.stringify({ 'Accelerate Codex with Hanzo': 'Accelerate Codex with Hanzo', 'Open source': 'Open source' }))
+  await writeFile(join(dir, 'ar.json'), JSON.stringify({ 'Accelerate Codex with Hanzo': 'سرّع Codex مع Hanzo', 'Open source': 'مفتوح المصدر' }))
+  await writeFile(join(dir, 'nl.json'), JSON.stringify({ 'Accelerate Codex with Hanzo': 'Versnel Codex met Hanzo', 'Open source': 'Open source' }))
+  await writeFile(join(dir, 'ja-JP.json'), JSON.stringify({ 'Accelerate Codex with Hanzo': 'コーデックスを高速化', 'Open source': 'オープンソース' }))
+  const terms = join(dir, 'terms.json')
+  await writeFile(terms, JSON.stringify({ keep: ['Hanzo', 'Codex'] }))
+
+  const args = [cli, '--catalogs', dir, '--terms', terms, '--locales', 'ar,nl,ja-JP']
+  const failure = await run('node', args).then(
+    () => undefined,
+    (e: { code: number; stdout: string; stderr: string }) => e,
+  )
+  assert.equal(failure?.code, 1)
+  assert.match(failure?.stderr ?? '', /ja-JP\/catalogs Accelerate Codex with Hanzo: drops Codex, Hanzo/)
+  assert.doesNotMatch(failure?.stderr ?? '', /(ar|nl)\//)
+  // Identical prose is listed for a person, and is not what failed the run.
+  assert.match(failure?.stdout ?? '', /review nl\/catalogs: 1 identical to the English: "Open source"/)
+
+  const { stdout } = await run('node', [cli, '--catalogs', dir, '--terms', terms, '--locales', 'ar,nl'])
+  assert.match(stdout, /clean/)
+})
+
+test('a terms file that is not names is refused, not read as none', async () => {
+  const args = await product({ a: 'A' }, { 'ja-JP': { a: 'あ' } })
+  const dir = await mkdtemp(join(tmpdir(), 'i18n-'))
+  await writeFile(join(dir, 'terms.json'), JSON.stringify({ keep: 'Hanzo' }))
+  await assert.rejects(run('node', [...args, '--terms', join(dir, 'terms.json')]), /keep must be a list of names/)
+})

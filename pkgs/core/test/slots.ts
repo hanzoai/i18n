@@ -48,3 +48,18 @@ test('a stray brace does not swallow the rest of the string', () => {
   assert.deepEqual(slots('{{a}} }} {{b}}'), ['a', 'b'])
   assert.deepEqual(slots('{{}}'), [''])
 })
+
+test('an argument this package renders is a slot too, and never an i18next one', () => {
+  // `translate` fills `{name}`. The braces stay on so that `{{amount}}` → `{amount}`
+  // fails: same name, and under i18next a literal `{amount}` on the screen.
+  assert.deepEqual(slots('Hello {name}, {count} new'), ['{count}', '{name}'])
+  assert.ok(parity('Hello {name}', 'مرحبا {name}'))
+  assert.ok(!parity('Hello {name}', 'Bonjour'))
+  assert.ok(!parity('{{amount}}', '{amount}'))
+  assert.ok(!parity('{amount}', '{{amount}}'))
+})
+
+test('braces that are not an argument are text', () => {
+  assert.deepEqual(slots('{ "a": 1 }'), [])
+  assert.deepEqual(slots('{count, plural, one {# item}}'), [])
+})

@@ -1,0 +1,116 @@
+# Checks every pull request, and publishes @hanzo/i18n (pkgs/core) to npm when a
+# push to main names a version npm does not serve yet. It is the only package
+# here that publishes; the CLIs under tools/ are private.
+#
+# The question is asked of the registry, not of the diff: a version strictly
+# greater than npm's `latest` is a release, anything else is not, so re-running
+# is idempotent. What publishes is the tarball scripts/verify-package.sh just
+# installed and used, not a second pack. The token is read from KMS at run time
+# (NPM_TOKEN at the org root, env prod).
+name: Publish
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  publish:
+    runs-on: [linux-amd64]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Is this version ahead of npm?
+        id: ahead
+        run: |
+          set -euo pipefail
+          NAME=$(jq -r .name pkgs/core/package.json)
+          NEW=$(jq -r .version pkgs/core/package.json)
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "release=false" >> "$GITHUB_OUTPUT"
+            echo "pull request: check $NAME $NEW, publish nothing"
+            exit 0
+          fi
+          # The version itself first: the full packument lags a fresh publish by
+          # minutes (it 404s), and reading that as "never published" re-publishes
+          # into a 403. The abbreviated document is what installs read.
+          if curl -sf -o /dev/null "https://registry.npmjs.org/${NAME}/${NEW}"; then
+            echo "release=false" >> "$GITHUB_OUTPUT"
+            echo "$NAME $NEW is already on npm; nothing to publish"
+            exit 0
+          fi
+          OLD=$(curl -sf -H 'Accept: application/vnd.npm.install-v1+json' "https://registry.npmjs.org/${NAME}" | jq -r '."dist-tags".latest // "0.0.0"' || echo 0.0.0)
+          TOP=$(printf '%s\n%s\n' "$OLD" "$NEW" | sort -V | tail -1)
+          if [ "$OLD" != "$NEW" ] && [ "$TOP" = "$NEW" ]; then
+            echo "release=true" >> "$GITHUB_OUTPUT"
+            echo "$NAME $OLD -> $NEW"
+          else
+            echo "release=false" >> "$GITHUB_OUTPUT"
+            echo "$NAME $NEW is not ahead of npm ($OLD); nothing to publish"
+          fi
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Typecheck, test, gate the catalogs, build
+        run: |
+          set -euo pipefail
+          pnpm install --frozen-lockfile
+          pnpm typecheck
+          pnpm test
+          pnpm --filter @hanzo/i18n validate
+          pnpm build
+          cd pkgs/core
+          node --input-type=module -e "await import('./dist/index.js')"
+
+      - name: Pack, install and use the tarball without this repo
+        id: pack
+        run: |
+          set -euo pipefail
+          cd pkgs/core
+          pnpm pack --pack-destination "$RUNNER_TEMP"
+          tgz=$(ls "$RUNNER_TEMP"/hanzo-i18n-*.tgz)
+          "$GITHUB_WORKSPACE/scripts/verify-package.sh" "$tgz"
+          echo "tgz=$tgz" >> "$GITHUB_OUTPUT"
+
+      - name: Read the npm token from KMS
+        if: steps.ahead.outputs.release == 'true'
+        id: npm
+        env:
+          KMS_CLIENT_ID: ${{ secrets.KMS_CLIENT_ID }}
+          KMS_CLIENT_SECRET: ${{ secrets.KMS_CLIENT_SECRET }}
+          KMS_ENDPOINT: ${{ vars.KMS_ENDPOINT || 'https://kms.hanzo.ai' }}
+          KMS_SECRET_ENV: ${{ vars.KMS_SECRET_ENV || 'prod' }}
+        run: |
+          set -uo pipefail
+          body="{\"clientId\":\"${KMS_CLIENT_ID}\",\"clientSecret\":\"${KMS_CLIENT_SECRET}\"}"
+          out=$(curl -sS -w '\n%{http_code}' "${KMS_ENDPOINT}/v1/kms/auth/login" -H 'Content-Type: application/json' --data-binary "$body")
+          code=${out##*$'\n'}; resp=${out%$'\n'*}
+          [ "$code" = "200" ] || { echo "::error::KMS login answered HTTP $code"; exit 1; }
+          token=$(printf '%s' "$resp" | jq -r '.accessToken // empty')
+          [ -n "$token" ] || { echo "::error::KMS login carried no accessToken"; exit 1; }
+          for attempt in 1 2 3 4 5; do
+            out=$(curl -sS -w '\n%{http_code}' "${KMS_ENDPOINT}/v1/kms/secrets/NPM_TOKEN?env=${KMS_SECRET_ENV}" -H "Authorization: Bearer ${token}")
+            code=${out##*$'\n'}; resp=${out%$'\n'*}
+            case "$code" in 200) break ;; 5*) sleep 15 ;; *) break ;; esac
+          done
+          [ "$code" = "200" ] || { echo "::error::KMS secret read answered HTTP $code"; exit 1; }
+          npm_token=$(printf '%s' "$resp" | jq -r '.value // empty')
+          [ -n "$npm_token" ] || { echo "::error::No NPM_TOKEN in KMS"; exit 1; }
+          echo "::add-mask::${npm_token}"
+          echo "token=${npm_token}" >> "$GITHUB_OUTPUT"
+
+      - name: Publish
+        if: steps.ahead.outputs.release == 'true'
+        env:
+          NODE_AUTH_TOKEN: ${{ steps.npm.outputs.token }}
+        run: npm publish "${{ steps.pack.outputs.tgz }}" --access public

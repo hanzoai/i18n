@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import { fill, missing, type Message, type Model } from '../src/fill.ts'
+import { asking, fill as fillWith, missing, type Message, type Model, type Strings } from '../src/fill.ts'
+
+/** Every case below asks a chat model; `asking` is what turns one into an engine. */
+const fill = (source: Strings, existing: Strings, locale: string, model: Model) =>
+  fillWith(source, existing, locale, asking(model))
 
 /** A model that answers with whatever it is handed. */
 const says = (answer: unknown): Model => async () => (typeof answer === 'string' ? answer : JSON.stringify(answer))

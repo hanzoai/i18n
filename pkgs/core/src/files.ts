@@ -23,6 +23,15 @@ export function translation(dir: string, locale: string, namespace: string): str
 }
 
 /**
+ * One locale's file in a flat catalog directory — the layout this package ships
+ * under `catalogs/`, where the source is `catalog(dir, 'en-US')`. One namespace,
+ * so the file is the locale.
+ */
+export function catalog(dir: string, locale: string): string {
+  return `${dir}/${locale}.json`
+}
+
+/**
  * One of those files as text.
  *
  * Sorted by key, because two tools write these files and a person reviews the
