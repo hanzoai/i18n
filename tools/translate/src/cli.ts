@@ -25,6 +25,8 @@
  *                         madlad: the CTranslate2 conversion directory
  *   --endpoint <origin>   default https://api.hanzo.ai
  *   --weights <ref>       recorded in provenance for a pinned artifact (repo@revision/file)
+ *   --jobs <n>            locales asked at once, default 1: a server with several slots
+ *                         answers several locales in the time it answers one
  *
  * The key is HANZO_API_KEY. TRANSLATION_BASE_URL instead points chat at a local
  * OpenAI-compatible /v1 (TRANSLATION_MODEL, optional TRANSLATION_API_KEY,
@@ -55,6 +57,7 @@ const { values } = parseArgs({
     model: { type: 'string', default: process.env.HANZO_MODEL },
     endpoint: { type: 'string', default: process.env.HANZO_ENDPOINT ?? ORIGIN },
     weights: { type: 'string' },
+    jobs: { type: 'string', default: '1' },
   },
 })
 
@@ -82,6 +85,9 @@ const { engine, label, close } = connect()
 const provenance: Provenance = flat ? await provenanceIn(flat) : {}
 
 let failed = 0
+const jobs = Math.max(1, Number.parseInt(values.jobs, 10) || 1)
+// Provenance is one file every locale writes to; its saves go one after another.
+let saving = Promise.resolve()
 for (const namespace of namespaces) {
   const strings = await read(sourceOf(namespace))
   if (Object.keys(strings).length === 0) {
@@ -89,16 +95,13 @@ for (const namespace of namespaces) {
     continue
   }
   const sourceSha256 = createHash('sha256').update(JSON.stringify(strings)).digest('hex')
-
-  for (const locale of locales) {
-    if (locale === DEFAULT_LOCALE) {
-      continue
-    }
+  const queue = locales.filter((l) => l !== DEFAULT_LOCALE)
+  const one = async (locale: string): Promise<void> => {
     const path = translationOf(locale, namespace)
     const existing = await read(path)
     const owed = Object.keys(missing(strings, existing)).length
     if (owed === 0) {
-      continue
+      return
     }
 
     try {
@@ -116,7 +119,8 @@ for (const namespace of namespaces) {
           if (kept.length > 0) {
             entry.runs.push({ model: 'source', note: `label kept as written: ${label} transliterated a protected name`, generatedAt, sourceSha256, keys: kept })
           }
-          await save(`${flat}/provenance.json`, `${JSON.stringify(provenance, null, 2)}\n`)
+          saving = saving.then(() => save(`${flat}/provenance.json`, `${JSON.stringify(provenance, null, 2)}\n`))
+          await saving
         }
       }
       console.log(`${locale}/${namespace}: ${Object.keys(added).length} of ${owed}${kept.length > 0 ? ` (${kept.length} labels kept as written)` : ''}`)
@@ -133,6 +137,13 @@ for (const namespace of namespaces) {
       console.error(`${locale}/${namespace}: ${(error as Error).message}`)
     }
   }
+  await Promise.all(
+    Array.from({ length: Math.min(jobs, queue.length) }, async () => {
+      for (let locale = queue.shift(); locale; locale = queue.shift()) {
+        await one(locale)
+      }
+    }),
+  )
 }
 
 close()

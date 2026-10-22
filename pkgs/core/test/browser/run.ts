@@ -122,6 +122,22 @@ try {
     ['ltr', 'isolate'],
   )
 
+  // An argument in right-to-left prose keeps its own order: the range reads 1,150 then
+  // 1,400 left to right, and an element argument stands in a <bdi>.
+  const order = await tab.locator('#range').evaluate((p) => {
+    const text = p.firstChild as Text
+    const at = (word: string) => {
+      const range = document.createRange()
+      const start = text.data.indexOf(word)
+      range.setStart(text, start)
+      range.setEnd(text, start + word.length)
+      return range.getBoundingClientRect().left
+    }
+    return at('1,150') < at('1,400')
+  })
+  assert.ok(order, 'the range reads in its own order inside Arabic')
+  assert.equal(await tab.locator('#terms bdi > a').textContent(), 'الشروط')
+
   await tab.reload()
   await tab.getByRole('heading', { name: 'مرحبًا' }).waitFor()
 

@@ -1,6 +1,6 @@
 {
   "name": "@hanzo/i18n",
-  "version": "0.3.2",
+  "version": "0.4.0",
   "description": "Hanzo localization: one locale registry, negotiation, React provider and picker, RTL, and lazily loaded catalogs.",
   "license": "BSD-3-Clause",
   "repository": {

@@ -18,4 +18,4 @@ export { faults, prose, SOFT, type Terms } from './rules.ts'
 
 export { source, translation, catalog, contents } from './files.ts'
 
-export { translate, preferenceKey } from './message.ts'
+export { translate, pieces, isolate, phrase, preferenceKey, type Piece } from './message.ts'

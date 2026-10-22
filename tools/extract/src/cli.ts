@@ -3,17 +3,25 @@
  * Write the keys a codebase asks for into the file a translator reads.
  *
  *   i18n-extract --code ./apps/web/src --source ./translations/source
+ *   i18n-extract --code ../rooms/src --code ../app/components --catalogs pkgs/core/catalogs [--prune]
  *
  *   --code <dir>        where to look; repeat for more than one
  *   --source <dir>      the `--source` directory to fill
  *   --namespace <ns>    for keys written without one (default: shared)
  *   --call a,b          what the product named its lookup (default: t)
+ *   --catalogs <dir>    instead of --source: a flat catalog whose keys are the English
+ *                       (`t('Pricing')`, `phrase('About Us')`), read from the syntax tree;
+ *                       --call defaults to t,phrase
+ *   --prune             with --catalogs: drop every key the scanned code no longer asks
+ *                       for, from en-US.json and every locale beside it. Scan EVERY
+ *                       codebase that reads the catalog, or this drops what the others use.
  */
 import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { parseArgs } from 'node:util'
-import { contents, source } from '@hanzo/i18n'
+import { DEFAULT_LOCALE, SUPPORTED_LOCALES, catalog, contents, source } from '@hanzo/i18n'
 
+import { catalogue, english } from './english.ts'
 import { merge, scan, type Key, type Strings } from './scan.ts'
 
 const CODE = /\.[cm]?[jt]sx?$/
@@ -24,16 +32,23 @@ const { values } = parseArgs({
     code: { type: 'string', multiple: true },
     source: { type: 'string' },
     namespace: { type: 'string', default: 'shared' },
-    call: { type: 'string', default: 't' },
+    call: { type: 'string' },
+    catalogs: { type: 'string' },
+    prune: { type: 'boolean', default: false },
   },
 })
 
-if (!values.code?.length || !values.source) {
-  throw new Error('required: --code <dir> --source <dir>')
+if (!values.code?.length || !values.source === !values.catalogs) {
+  throw new Error('required: --code <dir>, and --source <dir> or --catalogs <dir>')
 }
 
-const root = resolve(values.source)
-const calls = values.call.split(',').map((s) => s.trim()).filter(Boolean)
+if (values.catalogs) {
+  await flat(resolve(values.catalogs), (values.call ?? 't,phrase').split(',').map((s) => s.trim()).filter(Boolean))
+  process.exit(0)
+}
+
+const root = resolve(values.source!)
+const calls = (values.call ?? 't').split(',').map((s) => s.trim()).filter(Boolean)
 const found: Key[] = []
 for (const dir of values.code) {
   for await (const path of walk(resolve(dir))) {
@@ -57,6 +72,40 @@ for (const namespace of new Set(found.map((k) => k.namespace))) {
   const bare = Object.entries(after).filter(([k, v]) => k === v)
   if (bare.length > 0) {
     console.log(`  ${bare.length} awaiting English: ${bare.map(([k]) => k).join(', ')}`)
+  }
+}
+
+/**
+ * The flat catalog: English keys from every `--code` directory into `en-US.json`, and
+ * with `--prune`, the keys nobody asks for out of every file beside it.
+ */
+async function flat(dir: string, calls: string[]): Promise<void> {
+  const keys = new Set<string>()
+  for (const code of values.code!) {
+    for await (const path of walk(resolve(code))) {
+      for (const key of english(await readFile(path, 'utf8'), path, calls)) {
+        keys.add(key)
+      }
+    }
+  }
+  const path = catalog(dir, DEFAULT_LOCALE)
+  const before = await read(path)
+  const after = catalogue(before, [...keys], values.prune)
+  const added = Object.keys(after).filter((k) => !(k in before))
+  const dropped = Object.keys(before).filter((k) => !(k in after))
+  await writeFile(path, contents(after), 'utf8')
+  console.log(`${DEFAULT_LOCALE}: ${keys.size} asked for, ${added.length} new, ${dropped.length} dropped, ${Object.keys(after).length} total`)
+  if (dropped.length > 0) {
+    for (const locale of SUPPORTED_LOCALES) {
+      if (locale === DEFAULT_LOCALE) {
+        continue
+      }
+      const strings = await read(catalog(dir, locale))
+      const kept = Object.fromEntries(Object.entries(strings).filter(([k]) => k in after))
+      if (Object.keys(kept).length !== Object.keys(strings).length) {
+        await writeFile(catalog(dir, locale), contents(kept), 'utf8')
+      }
+    }
   }
 }
 
