@@ -1,14 +1,32 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import { asking, fill as fillWith, missing, type Message, type Model, type Strings } from '../src/fill.ts'
+import { asking, fill as fillWith, gate, missing, type Message, type Model, type Strings } from '../src/fill.ts'
 
 /** Every case below asks a chat model; `asking` is what turns one into an engine. */
 const fill = (source: Strings, existing: Strings, locale: string, model: Model) =>
   fillWith(source, existing, locale, asking(model))
 
-/** A model that answers with whatever it is handed. */
-const says = (answer: unknown): Model => async () => (typeof answer === 'string' ? answer : JSON.stringify(answer))
+/**
+ * A model that answers with whatever it is handed: text as it is, or an answer keyed
+ * like `source`, which it files under the number each string was asked by.
+ */
+const says =
+  (answer: unknown, source: Strings = {}): Model =>
+  async (messages) => {
+    if (typeof answer === 'string') {
+      return answer
+    }
+    const asked = JSON.parse(messages.at(-1)!.content) as Strings
+    const keyOf = (english: string) => Object.keys(source).find((k) => source[k] === english)
+    const byKey = answer as Record<string, unknown>
+    return JSON.stringify(
+      Object.fromEntries([
+        ...Object.entries(asked).map(([n, english]) => [n, byKey[keyOf(english) ?? '']]),
+        ...Object.entries(byKey).filter(([k]) => !(k in source)),
+      ]),
+    )
+  }
 
 /** A model that must not be called. */
 const silent: Model = async () => {
@@ -19,15 +37,14 @@ test('only the missing keys are asked for', async () => {
   let asked: Message[] = []
   const model: Model = async (messages) => {
     asked = messages
-    return JSON.stringify({ b: 'Bee' })
+    return JSON.stringify({ 1: 'Bee' })
   }
 
   const { added } = await fill({ a: 'A', b: 'B' }, { a: 'Ah' }, 'fr-FR', model)
   assert.deepEqual(added, { b: 'Bee' })
   // Sending the whole file every run would spend a thousand keys to add three,
   // and would hand back new wording for strings a person already approved.
-  assert.ok(!asked.at(-1)?.content.includes('"a"'))
-  assert.ok(asked.at(-1)?.content.includes('"b"'))
+  assert.deepEqual(JSON.parse(asked.at(-1)!.content), { 1: 'B' })
   assert.ok(asked[0].content.includes('fr-FR'))
 })
 
@@ -41,45 +58,45 @@ test('a complete locale is not a request', async () => {
 test('a slot that did not survive is refused, not written', async () => {
   const source = { swap: 'Swap {{amount}} {{token}}' }
 
-  const dropped = await fill(source, {}, 'de-DE', says({ swap: 'Tausche {{amount}}' }))
+  const dropped = await fill(source, {}, 'de-DE', says({ swap: 'Tausche {{amount}}' }, source))
   assert.deepEqual(dropped, { added: {}, refused: ['swap'], kept: [] })
 
-  const renamed = await fill(source, {}, 'de-DE', says({ swap: '{{betrag}} {{token}} tauschen' }))
+  const renamed = await fill(source, {}, 'de-DE', says({ swap: '{{betrag}} {{token}} tauschen' }, source))
   assert.deepEqual(renamed, { added: {}, refused: ['swap'], kept: [] })
 
   // Reordered is not broken — German moves the verb.
-  const moved = await fill(source, {}, 'de-DE', says({ swap: '{{token}} im Wert von {{amount}} tauschen' }))
+  const moved = await fill(source, {}, 'de-DE', says({ swap: '{{token}} im Wert von {{amount}} tauschen' }, source))
   assert.deepEqual(moved, { added: { swap: '{{token}} im Wert von {{amount}} tauschen' }, refused: [], kept: [] })
 })
 
 test('a refusal leaves the key missing so the next run asks again', async () => {
   const source = { a: '{{x}}', b: 'B' }
-  const first = await fill(source, {}, 'de-DE', says({ a: 'kaputt', b: 'Bee' }))
+  const first = await fill(source, {}, 'de-DE', says({ a: 'kaputt', b: 'Bee' }, source))
   assert.deepEqual(first, { added: { b: 'Bee' }, refused: ['a'], kept: [] })
 
-  const second = await fill(source, first.added, 'de-DE', says({ a: '{{x}}!' }))
+  const second = await fill(source, first.added, 'de-DE', says({ a: '{{x}}!' }, source))
   assert.deepEqual(second, { added: { a: '{{x}}!' }, refused: [], kept: [] })
 })
 
 test('the answer is data, not instruction', async () => {
   // A key nobody asked for cannot be filed, whatever the model returns.
-  const { added } = await fill({ a: 'A' }, {}, 'fr-FR', says({ a: 'Ah', 'admin.token': 'oui' }))
+  const { added } = await fill({ a: 'A' }, {}, 'fr-FR', says({ a: 'Ah', 'admin.token': 'oui' }, { a: 'A' }))
   assert.deepEqual(added, { a: 'Ah' })
 })
 
 test('a key that came back empty or not a string is refused', async () => {
-  assert.deepEqual((await fill({ a: 'A' }, {}, 'fr-FR', says({ a: '' }))).refused, ['a'])
-  assert.deepEqual((await fill({ a: 'A' }, {}, 'fr-FR', says({ a: '   ' }))).refused, ['a'])
-  assert.deepEqual((await fill({ a: 'A' }, {}, 'fr-FR', says({ a: 42 }))).refused, ['a'])
-  assert.deepEqual((await fill({ a: 'A' }, {}, 'fr-FR', says({ b: 'B' }))).refused, ['a'])
+  assert.deepEqual((await fill({ a: 'A' }, {}, 'fr-FR', says({ a: '' }, { a: 'A' }))).refused, ['a'])
+  assert.deepEqual((await fill({ a: 'A' }, {}, 'fr-FR', says({ a: '   ' }, { a: 'A' }))).refused, ['a'])
+  assert.deepEqual((await fill({ a: 'A' }, {}, 'fr-FR', says({ a: 42 }, { a: 'A' }))).refused, ['a'])
+  assert.deepEqual((await fill({ a: 'A' }, {}, 'fr-FR', says({ b: 'B' }, { a: 'A' }))).refused, ['a'])
 })
 
 test('a fenced answer is still an answer', async () => {
   // Told to return JSON, a model still wraps it in a code fence often enough
   // that treating the fence as a failure means retranslating a whole locale.
-  assert.deepEqual((await fill({ a: 'A' }, {}, 'fr-FR', says('```json\n{"a":"Ah"}\n```'))).added, { a: 'Ah' })
-  assert.deepEqual((await fill({ a: 'A' }, {}, 'fr-FR', says('```\n{"a":"Ah"}\n```'))).added, { a: 'Ah' })
-  assert.deepEqual((await fill({ a: 'A' }, {}, 'fr-FR', says('  {"a":"Ah"}  '))).added, { a: 'Ah' })
+  assert.deepEqual((await fill({ a: 'A' }, {}, 'fr-FR', says('```json\n{"1":"Ah"}\n```'))).added, { a: 'Ah' })
+  assert.deepEqual((await fill({ a: 'A' }, {}, 'fr-FR', says('```\n{"1":"Ah"}\n```'))).added, { a: 'Ah' })
+  assert.deepEqual((await fill({ a: 'A' }, {}, 'fr-FR', says('  {"1":"Ah"}  '))).added, { a: 'Ah' })
 })
 
 test('an answer that is not an object is an error, not a silent empty run', async () => {
@@ -157,9 +174,28 @@ test('a label whose protected name the answer transliterated is kept as written'
   const terms = { keep: ['Hanzo', 'Gen'] }
   const source = { os: 'Hanzo OS', gen: 'Gen 1', team: 'Open in Hanzo Team', swap: 'Hanzo {{amount}}' }
   const answer = { os: 'ہانزو OS', gen: 'نسل ۱', team: 'ہانزو ٹیم میں کھولیں', swap: 'ہانزو {{amount}}' }
-  const { added, refused, kept } = await fillWith(source, {}, 'pa-PK', asking(says(answer), terms), terms)
+  const { added, refused, kept } = await fillWith(source, {}, 'pa-PK', asking(says(answer, source), terms), terms)
   assert.deepEqual(added, { os: 'Hanzo OS', gen: 'Gen 1' })
   assert.deepEqual(kept, ['os', 'gen'])
   // Prose and a string with a slot are translations, not labels: they stay missing.
   assert.deepEqual(refused, ['team', 'swap'])
+})
+
+test('the gate holds n calls in flight and serves the rest in the order asked', async () => {
+  const turn = gate(2)
+  let flying = 0
+  let most = 0
+  const started: number[] = []
+  const call = (i: number) =>
+    turn(async () => {
+      started.push(i)
+      most = Math.max(most, ++flying)
+      await new Promise((r) => setTimeout(r, 5))
+      flying--
+      return i
+    })
+  const done = await Promise.all([0, 1, 2, 3, 4, 5].map(call))
+  assert.deepEqual(done, [0, 1, 2, 3, 4, 5])
+  assert.equal(most, 2)
+  assert.deepEqual(started, [0, 1, 2, 3, 4, 5])
 })

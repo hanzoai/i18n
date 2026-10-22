@@ -25,8 +25,9 @@
  *                         madlad: the CTranslate2 conversion directory
  *   --endpoint <origin>   default https://api.hanzo.ai
  *   --weights <ref>       recorded in provenance for a pinned artifact (repo@revision/file)
- *   --jobs <n>            locales asked at once, default 1: a server with several slots
- *                         answers several locales in the time it answers one
+ *   --jobs <n>            requests in flight at once, default 1: a server with several
+ *                         slots answers that many together. Locales are asked in the
+ *                         order given, so the first is finished and written first.
  *
  * The key is HANZO_API_KEY. TRANSLATION_BASE_URL instead points chat at a local
  * OpenAI-compatible /v1 (TRANSLATION_MODEL, optional TRANSLATION_API_KEY,
@@ -40,7 +41,7 @@ import { parseArgs } from 'node:util'
 import { DEFAULT_LOCALE, SUPPORTED_LOCALES, catalog, contents, source, translation, type Terms } from '@hanzo/i18n'
 
 import { MODEL, ORIGIN, chat } from './chat.ts'
-import { asking, fill, missing, type Engine, type Strings } from './fill.ts'
+import { asking, fill, gate, missing, type Engine, type Strings } from './fill.ts'
 import { madlad, spawnWorker } from './madlad.ts'
 import { service, type Tier } from './service.ts'
 
@@ -86,6 +87,8 @@ const provenance: Provenance = flat ? await provenanceIn(flat) : {}
 
 let failed = 0
 const jobs = Math.max(1, Number.parseInt(values.jobs, 10) || 1)
+const turn = gate(jobs)
+const asked: Engine = (want, locale) => turn(() => engine(want, locale))
 // Provenance is one file every locale writes to; its saves go one after another.
 let saving = Promise.resolve()
 for (const namespace of namespaces) {
@@ -95,55 +98,56 @@ for (const namespace of namespaces) {
     continue
   }
   const sourceSha256 = createHash('sha256').update(JSON.stringify(strings)).digest('hex')
-  const queue = locales.filter((l) => l !== DEFAULT_LOCALE)
-  const one = async (locale: string): Promise<void> => {
+  const runs: Promise<void>[] = []
+  for (const locale of locales) {
+    if (locale === DEFAULT_LOCALE) {
+      continue
+    }
     const path = translationOf(locale, namespace)
     const existing = await read(path)
     const owed = Object.keys(missing(strings, existing)).length
     if (owed === 0) {
-      return
+      continue
     }
-
-    try {
-      const { added, refused, kept } = await fill(strings, existing, locale, engine, terms)
-      if (Object.keys(added).length > 0) {
-        await mkdir(dirname(path), { recursive: true })
-        await writeFile(path, contents({ ...existing, ...added }), 'utf8')
-        if (flat) {
-          const entry = (provenance[locale] ??= { review: 'machine-translated; native-speaker review pending', runs: [] })
-          const generatedAt = new Date().toISOString()
-          const translated = Object.keys(added).filter((key) => !kept.includes(key))
-          if (translated.length > 0) {
-            entry.runs.push({ model: label, ...(values.weights && { weights: values.weights }), generatedAt, sourceSha256, keys: translated })
+    // Started, not awaited: every batch joins the gate's line now, in locale order.
+    runs.push(
+      fill(strings, existing, locale, asked, terms).then(
+        async ({ added, refused, kept }) => {
+          if (Object.keys(added).length > 0) {
+            await mkdir(dirname(path), { recursive: true })
+            await writeFile(path, contents({ ...existing, ...added }), 'utf8')
+            if (flat) {
+              const entry = (provenance[locale] ??= { review: 'machine-translated; native-speaker review pending', runs: [] })
+              const generatedAt = new Date().toISOString()
+              const translated = Object.keys(added).filter((key) => !kept.includes(key))
+              if (translated.length > 0) {
+                entry.runs.push({ model: label, ...(values.weights && { weights: values.weights }), generatedAt, sourceSha256, keys: translated })
+              }
+              if (kept.length > 0) {
+                entry.runs.push({ model: 'source', note: `label kept as written: ${label} transliterated a protected name`, generatedAt, sourceSha256, keys: kept })
+              }
+              saving = saving.then(() => save(`${flat}/provenance.json`, `${JSON.stringify(provenance, null, 2)}\n`))
+              await saving
+            }
           }
-          if (kept.length > 0) {
-            entry.runs.push({ model: 'source', note: `label kept as written: ${label} transliterated a protected name`, generatedAt, sourceSha256, keys: kept })
+          console.log(`${locale}/${namespace}: ${Object.keys(added).length} of ${owed}${kept.length > 0 ? ` (${kept.length} labels kept as written)` : ''}`)
+          if (refused.length > 0) {
+            // Left missing on purpose. Writing a translation whose slots do not
+            // match ships a screen with a blank where an amount goes; leaving it
+            // missing means the next run asks again and the gate reports it now.
+            console.log(`  ${refused.length} came back wrong: ${refused.join(', ')}`)
           }
-          saving = saving.then(() => save(`${flat}/provenance.json`, `${JSON.stringify(provenance, null, 2)}\n`))
-          await saving
-        }
-      }
-      console.log(`${locale}/${namespace}: ${Object.keys(added).length} of ${owed}${kept.length > 0 ? ` (${kept.length} labels kept as written)` : ''}`)
-      if (refused.length > 0) {
-        // Left missing on purpose. Writing a translation whose slots do not
-        // match ships a screen with a blank where an amount goes; leaving it
-        // missing means the next run asks again and the gate reports it now.
-        console.log(`  ${refused.length} came back wrong: ${refused.join(', ')}`)
-      }
-    } catch (error) {
-      // One locale's model call failing is not a reason to abandon the others;
-      // the exit code still says the run was not complete.
-      failed++
-      console.error(`${locale}/${namespace}: ${(error as Error).message}`)
-    }
+        },
+        (error: Error) => {
+          // One locale's model call failing is not a reason to abandon the others;
+          // the exit code still says the run was not complete.
+          failed++
+          console.error(`${locale}/${namespace}: ${error.message}`)
+        },
+      ),
+    )
   }
-  await Promise.all(
-    Array.from({ length: Math.min(jobs, queue.length) }, async () => {
-      for (let locale = queue.shift(); locale; locale = queue.shift()) {
-        await one(locale)
-      }
-    }),
-  )
+  await Promise.all(runs)
 }
 
 close()

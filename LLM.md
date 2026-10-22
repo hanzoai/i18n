@@ -187,9 +187,13 @@ MADLAD_PYTHON=.venv/bin/python node tools/translate/dist/cli.js --catalogs pkgs/
   --weights Nextcloud-AI/madlad400-3b-mt-ct2-int8@aa32bbdeba7880eff2096ec044cb155a340a9400/model.bin
 ```
 
-Only missing keys are sent, in groups of ≤100 keys / 8 KB, one locale at a time or
-`--jobs n` at once (a server with several slots answers several locales together;
-provenance is saved after each, one save at a time); a refused or failed key stays
+Only missing keys are sent, in groups of ≤100 keys / 8 KB. `--jobs n` is how many
+requests are in flight: every group of every locale joins one line in locale order, so a
+server with n slots answers one locale's groups together and that locale is written first
+(provenance is saved after each, one save at a time). A chat model is sent the strings
+NUMBERED (`"1": "Log in"`) and answers by number: keyed by its English, Jais 3 translated
+the keys too and no answer matched. Answers are streamed, so a slow local model writing a
+group for longer than fetch's five-minute wait for headers is not cut off. A refused or failed key stays
 missing so the next run asks again and a reviewer's correction is never overwritten. The
 one exception is a label: a protected name with at most one other word and no slot
 (`Hanzo OS`, `Hanzo.Stack`, `Gen 1`) translates to itself, so when an answer transliterates

@@ -23,6 +23,10 @@ export function chat(model: string, endpoint: string, key?: string, extra: Recor
         // make a rerun a diff.
         temperature: 0,
         response_format: { type: 'json_object' },
+        // Streamed, so the answer's headers arrive at once. Unstreamed, a batch a
+        // slow local model writes for longer than fetch waits for headers (five
+        // minutes) is cut off: Jais 3 at four tokens a second per slot took ten.
+        stream: true,
         ...extra,
       }),
     })
@@ -30,15 +34,40 @@ export function chat(model: string, endpoint: string, key?: string, extra: Recor
     if (!answer.ok) {
       throw new Error(`${endpoint} answered ${answer.status}: ${(await answer.text()).slice(0, 200)}`)
     }
-    const body = (await answer.json()) as { choices?: { finish_reason?: string; message?: { content?: string } }[] }
-    const choice = body.choices?.[0]
-    if (choice?.finish_reason === 'length') {
+    const { content, finish } = answer.headers?.get('content-type')?.includes('text/event-stream') ? await streamed(answer) : whole(await answer.json())
+    if (finish === 'length') {
       throw new Error(`${endpoint} truncated its answer`)
     }
-    const content = choice?.message?.content
     if (typeof content !== 'string') {
       throw new Error(`${endpoint} answered with no message`)
     }
     return content
   }
+}
+
+type Said = { content?: string; finish?: string }
+
+/** An answer sent whole: one message. */
+function whole(body: unknown): Said {
+  const choice = (body as { choices?: { finish_reason?: string; message?: { content?: string } }[] }).choices?.[0]
+  return { content: choice?.message?.content, finish: choice?.finish_reason }
+}
+
+/** An answer streamed as server-sent events: the deltas joined, and why it stopped. */
+async function streamed(answer: Response): Promise<Said> {
+  const text = await answer.text()
+  let content: string | undefined
+  let finish: string | undefined
+  for (const line of text.split('\n')) {
+    const data = line.startsWith('data:') ? line.slice(5).trim() : ''
+    if (!data || data === '[DONE]') {
+      continue
+    }
+    const choice = (JSON.parse(data) as { choices?: { finish_reason?: string | null; delta?: { content?: string | null } }[] }).choices?.[0]
+    if (typeof choice?.delta?.content === 'string') {
+      content = (content ?? '') + choice.delta.content
+    }
+    finish = choice?.finish_reason ?? finish
+  }
+  return { content, finish }
 }

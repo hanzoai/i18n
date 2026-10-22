@@ -53,20 +53,27 @@ export async function fill(
     return { added, refused, kept }
   }
 
-  const groups = batches(want)
+  // Every batch is asked at once; the engine decides how many are in flight (the
+  // CLI's `gate`), so a server with several slots answers one locale's batches together.
   let failure: Error | undefined
-  for (const group of groups) {
-    let answer: Record<string, unknown>
-    try {
-      answer = await engine(group, locale)
-    } catch (error) {
-      // One batch failing costs its own keys and nothing else. They stay missing,
-      // which is the same state every other refusal leaves them in, so the next
-      // run asks for exactly them — and the batches that DID answer are still
-      // returned and written. Asking for everything at once had no such property:
-      // one truncated reply lost the whole locale, and since the next run asked
-      // the identical question it truncated identically. No progress was possible.
-      failure = error as Error
+  const answers = await Promise.all(
+    batches(want).map(async (group) => {
+      try {
+        return { group, answer: await engine(group, locale) }
+      } catch (error) {
+        // One batch failing costs its own keys and nothing else. They stay missing,
+        // which is the same state every other refusal leaves them in, so the next
+        // run asks for exactly them — and the batches that DID answer are still
+        // returned and written. Asking for everything at once had no such property:
+        // one truncated reply lost the whole locale, and since the next run asked
+        // the identical question it truncated identically. No progress was possible.
+        failure = error as Error
+        return { group, answer: undefined }
+      }
+    }),
+  )
+  for (const { group, answer } of answers) {
+    if (!answer) {
       refused.push(...Object.keys(group))
       continue
     }
@@ -205,9 +212,50 @@ const NOTES: Record<string, string> = {
   'zh-Hant': 'Use Traditional Chinese characters and Taiwan terminology (軟體, 資料, 網路, 程式); never Simplified characters.',
 }
 
-/** A chat model as an `Engine`: one prompt per group, a JSON object back. */
+/**
+ * At most `n` calls in flight, the rest served in the order they were asked. The CLI
+ * asks every locale's batches in registry order, so the first locale's batches go
+ * first and it is written first, while the server's every slot stays busy.
+ */
+export function gate(n: number): <T>(task: () => Promise<T>) => Promise<T> {
+  let busy = 0
+  const waiting: (() => void)[] = []
+  return async (task) => {
+    if (busy < n) {
+      busy++
+    } else {
+      // A finished call hands its slot straight to the next in line, so a caller
+      // arriving between the two cannot take it and run n + 1 at once.
+      await new Promise<void>((go) => waiting.push(go))
+    }
+    try {
+      return await task()
+    } finally {
+      const next = waiting.shift()
+      if (next) {
+        next()
+      } else {
+        busy--
+      }
+    }
+  }
+}
+
+/**
+ * A chat model as an `Engine`: one prompt per group, a JSON object back.
+ *
+ * The strings go NUMBERED, not keyed. A catalog keyed by its English hands a model
+ * `"Log in": "Log in"`, and told to keep the keys, Jais 3 translated both sides of
+ * every pair, so no answer matched a key and a whole locale came back refused. A
+ * number has nothing to translate; the answer is read back by it.
+ */
 export function asking(model: Model, terms: Terms = {}): Engine {
-  return async (want, locale) => read(await model(prompt(want, locale, terms)))
+  return async (want, locale) => {
+    const keys = Object.keys(want)
+    const numbered = Object.fromEntries(keys.map((key, i) => [String(i + 1), want[key]]))
+    const answer = read(await model(prompt(numbered, locale, terms)))
+    return Object.fromEntries(keys.map((key, i) => [key, answer[String(i + 1)]]))
+  }
 }
 
 function prompt(want: Strings, locale: string, terms: Terms): Message[] {
