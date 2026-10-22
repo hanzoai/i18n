@@ -28,6 +28,7 @@ node --input-type=module -e "
   if (core.resolve('zh-TW') !== 'zh-Hant' || core.direction('ar') !== 'rtl') throw new Error('negotiation')
   if (server.negotiate('es-CO,es;q=0.9') !== 'es-419' || typeof native.detect !== 'function') throw new Error('subpaths')
   if (!/^\(\(\)=>\{try\{.*'rtl'.*\}catch\{\}\}\)\(\)$/.test(boot.bootScript())) throw new Error('boot')
+  if (core.format('en-US').money(1234.5, 'USD') !== '\$1,234.50' || !/١٬٢٣٤/.test(core.format('ar-EG').number(1234))) throw new Error('format')
   console.log('node: @hanzo/i18n, /server, /native, /boot import')
 "
 
@@ -51,15 +52,17 @@ node -e "if (Object.keys(require('./head.json').inputs).some((p) => /node_module
 echo "bundle: @hanzo/i18n/boot without React, a $(node head.out.js)-byte script"
 
 cat > check.ts <<'TS'
-import { locales, resolve, type Locale } from '@hanzo/i18n'
-import { I18nProvider, LanguagePicker, useI18n, type I18n } from '@hanzo/i18n/react'
+import { format, locales, resolve, type Locale } from '@hanzo/i18n'
+import { I18nProvider, LanguagePicker, useI18n, type Format, type I18n } from '@hanzo/i18n/react'
 import { negotiate } from '@hanzo/i18n/server'
 import { bootScript } from '@hanzo/i18n/boot'
 const head: string = bootScript()
 const first: Locale = locales[0]
 const code: string = resolve(first.code)
 const t: I18n['t'] = (s) => s
-export { I18nProvider, LanguagePicker, useI18n, negotiate, code, t, head }
+const figures: Format = format('ar')
+const money: string = figures.money(5, 'USD', { maximumFractionDigits: 0 })
+export { I18nProvider, LanguagePicker, useI18n, negotiate, code, t, head, money }
 TS
 for resolution in bundler nodenext; do
   module=$([ "$resolution" = bundler ] && echo esnext || echo nodenext)

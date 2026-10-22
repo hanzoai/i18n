@@ -100,6 +100,13 @@ try {
 
   await tab.goto(origin)
   assert.equal((await options()).length, offered)
+  // English figures are what toLocaleString writes, with nothing set apart.
+  assert.deepEqual(await tab.locator('#count, #total, #names, #when').allTextContents(), [
+    '1,234,567',
+    'Total: $1,234.50',
+    'Built with Chat, Dev, and Kai',
+    '3 minutes ago',
+  ])
   // rtl.css answers to :dir(rtl), so a right-to-left region of a left-to-right page is held too.
   const style = (selector: string) =>
     tab.locator(selector).evaluate((e) => [getComputedStyle(e).direction, getComputedStyle(e).unicodeBidi, getComputedStyle(e).transform])
@@ -137,6 +144,38 @@ try {
   })
   assert.ok(order, 'the range reads in its own order inside Arabic')
   assert.equal(await tab.locator('#terms bdi > a').textContent(), 'الشروط')
+
+  // Figures in Arabic: the digits the browser's Intl writes for the locale, each figure
+  // one isolate (handed to t, not isolated twice), and a list of Latin names that reads
+  // right to left, item by item: Chat, then Dev, then Kai.
+  const written = (code: string) =>
+    tab.evaluate((c) => [new Intl.NumberFormat(c).format(1234567), new Intl.NumberFormat(c, { style: 'currency', currency: 'USD' }).format(1234.5)], code)
+  const marks = (selector: string) => tab.locator(selector).evaluate((e) => [...(e.textContent ?? '')].filter((c) => c === '\u2068').length)
+  const [count, money] = await written('ar')
+  assert.equal(await tab.locator('#count').textContent(), `\u2068${count}\u2069`)
+  assert.equal(await tab.locator('#total').textContent(), `المجموع: \u2068${money}\u2069`)
+  assert.equal(await marks('#total'), 1)
+  const places = () =>
+    tab.locator('#names').evaluate((p) => {
+      const text = p.firstChild as Text
+      return ['Chat', 'Dev', 'Kai'].map((word) => {
+        const range = document.createRange()
+        range.setStart(text, text.data.indexOf(word))
+        range.setEnd(text, text.data.indexOf(word) + word.length)
+        return range.getBoundingClientRect().left
+      })
+    })
+  const [chat, dev, kai] = await places()
+  assert.ok(chat > dev && dev > kai, `the list reads right to left: Chat ${chat}, Dev ${dev}, Kai ${kai}`)
+
+  // ar-EG: Arabic-Indic digits, in the figure and in how long ago.
+  await select.selectOption('ar-EG')
+  await tab.waitForFunction(() => document.documentElement.lang === 'ar-EG')
+  assert.equal(await tab.locator('#count').textContent(), `\u2068${(await written('ar-EG'))[0]}\u2069`)
+  assert.match((await tab.locator('#count').textContent()) ?? '', /١٬٢٣٤٬٥٦٧/)
+  assert.match((await tab.locator('#when').textContent()) ?? '', /٣/)
+  const [egChat, egDev, egKai] = await places()
+  assert.ok(egChat > egDev && egDev > egKai, 'the list reads right to left in ar-EG')
 
   await tab.reload()
   await tab.getByRole('heading', { name: 'مرحبًا' }).waitFor()
@@ -296,6 +335,7 @@ try {
 
   console.log(
     `PASS: ${offered} offered (${REVIEW.length} under review: ${REVIEW.join(', ') || 'none'}), Arabic RTL, reload, ` +
+      'figures in Arabic (Intl digits, one isolate, a list right to left), ' +
       'account isolation, failed load keeps the language, review locale kept by code, browser language negotiation, ' +
       `${rtl.length} right-to-left locales (${rtl.join(', ')}), :dir(rtl) inside a left-to-right page; ` +
       `bootScript: rtl before the parser reached the body (first paint at ${paint === null ? 'unreported' : `${Math.round(paint)}ms`}), ` +

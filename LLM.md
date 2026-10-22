@@ -5,9 +5,9 @@ package is `pkgs/core/README.md` (what npm shows); this file is how it is built 
 
 | path | what | publishes | tests |
 |---|---|---|---|
-| `pkgs/core` → **`@hanzo/i18n`** | `.`: the 79-locale registry (`locales`, `SUPPORTED_LOCALES`), `resolve`, `direction`, `slots`/`parity`, `faults`, file layout, `translate`. `./react`: `I18nProvider`, `LanguagePicker`, `useI18n`, `T`. `./server`: `accept`, `negotiate`, `links`, `alternates`, `sitemap`. `./native`: `detect`, `preferred`. `./boot`: `bootScript`. `./rtl.css`. `./catalogs/*` | yes, by `.github/workflows/publish.yml` | 91 + `test:browser` |
-| `tools/extract` | scan code → missing keys into `source/<ns>/en-US.json`, or English keys (`t`, `phrase`) into a flat catalog | private | 23 |
-| `tools/translate` | fill what a locale is missing: `/v1/translate`, chat, a local model, or MADLAD | private | 27 |
+| `pkgs/core` → **`@hanzo/i18n`** | `.`: the 79-locale registry (`locales`, `SUPPORTED_LOCALES`), `resolve`, `direction`, `slots`/`parity`, `faults`, file layout, `translate`, `format`. `./react`: `I18nProvider`, `LanguagePicker`, `useI18n` (`t`, `format`), `T`. `./server`: `accept`, `negotiate`, `links`, `alternates`, `sitemap`. `./native`: `detect`, `preferred`. `./boot`: `bootScript`. `./rtl.css`. `./catalogs/*` | yes, by `.github/workflows/publish.yml` | 103 + `test:browser` |
+| `tools/extract` | scan code → missing keys into `source/<ns>/en-US.json`, or English keys (`t`, `phrase`, `<T>`) into a flat catalog | private | 27 |
+| `tools/translate` | fill what a locale is missing: `/v1/translate`, chat, a local model, or MADLAD | private | 29 |
 | `tools/validate` | the gate: presence, slots, protected names, script, Chinese variant | private | 20 |
 
 There used to be seven packages. `@hanzo/i18n-react` (a react-i18next re-export nobody
@@ -91,9 +91,23 @@ locale, and `brands` that are names but need not survive (only excluded from "is
 `catalogs/en-US.json` is extracted, never typed. Its keys are the English itself, read
 from the syntax tree of every codebase that renders with this package (`tools/extract
 --catalogs`, `src/english.ts`): the first argument of `t(…)` and `phrase(…)` when it is
-a literal, a template with no substitution, or either arm of a choice. A key built at
-runtime is not seen; the literal is wherever the value was written, inside `phrase`.
-A comment is not a call, so a doc example never becomes a key.
+a literal, a template with no substitution, or either arm of a choice; and the children
+of `<T>` (`--tag`) when they are one string. A key built at runtime is not seen; the
+literal is wherever the value was written, inside `phrase`. A comment is not a call, so
+a doc example never becomes a key.
+
+**`<T>`'s key is what the compiler hands `T`, not what the source shows.** JSX text is
+normalized at compile time, so `tools/extract/src/jsx.ts` `text` applies SWC's rule
+(Next's compiler, `jsx_text_to_str_with_raw`): entities decoded (the 253 of HTML 4, a
+lowercase `&#x` only); lines cut at every line terminator, one an entity wrote
+included; spaces and tabs trimmed where they touch a line break, except one an entity
+wrote; the lines that hold anything joined by one space. Children are a key when, less
+indentation and braced comments, exactly one is left: that text, or a literal in braces
+(`{'{n} tasks'}`, either arm of a choice). `test/jsx.ts` compiles every case with
+esbuild's automatic runtime and holds the key equal to the children `T` receives; the
+same cases and the entity edges were measured against Next 16.3's SWC. Compilers part
+only on rarities authored copy never holds: Babel makes a tab inside a line a space;
+TypeScript and esbuild keep a line break an entity wrote and trim every Unicode space.
 
 ```sh
 node --experimental-strip-types tools/extract/src/cli.ts --catalogs pkgs/core/catalogs --prune \
@@ -114,6 +128,28 @@ every argument is isolated — Unicode's first-strong isolate in a string (`isol
 reorders (`1,150–1,400` read `1,400–1,150`). Isolation applies only right to left, so
 an English rendering stays byte for byte what it was. `test:browser` measures the
 range's order in Arabic and fails without it.
+
+## `format`: Intl at the locale, isolated right to left
+
+`format(locale)` (`src/format.ts`, and `useI18n().format` for the provider's locale)
+answers `number`, `percent` (a fraction), `money(amount, currency)`, `date`,
+`relative` and `list`. Each is one `Intl` constructor at the locale with the caller's
+options passed through and kept per set of options, so en-US output is byte for byte
+`toLocaleString('en-US', options)` (`date` with no options is `toLocaleDateString`) —
+which is what lets a page move its hand formatting onto these without its English
+changing. Digits, separators and calendar are Intl's decision for the tag: `ar` writes
+Latin digits and `ar-EG`/`ar-SA`/`ar-LB` Arabic-Indic, `fa` and `ps` Persian digits and
+the solar calendar. `relative` takes the largest unit the span fills (year 365 days,
+month 30, then week, day, hour, minute, second), measured from `now`.
+
+Right to left, every result is one isolate, and a list isolates each item before
+joining: FSI resolves its direction from the first strong letter OUTSIDE nested
+isolates, so `FSI Chat PDI و FSI Dev PDI` is a right-to-left run and reads Chat, then Dev; without
+the item isolates the first letter is Latin and the list reads backwards
+(`test:browser` measures it, and fails with the item isolates removed). `isolate`
+returns text that is already one whole isolate as it is, so a formatted figure handed
+to `t` carries one pair of marks. An unreadable moment throws `RangeError` rather than
+writing "Invalid Date" into a page.
 
 ## Catalogs
 

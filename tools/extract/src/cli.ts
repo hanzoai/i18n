@@ -10,8 +10,10 @@
  *   --namespace <ns>    for keys written without one (default: shared)
  *   --call a,b          what the product named its lookup (default: t)
  *   --catalogs <dir>    instead of --source: a flat catalog whose keys are the English
- *                       (`t('Pricing')`, `phrase('About Us')`), read from the syntax tree;
- *                       --call defaults to t,phrase
+ *                       (`t('Pricing')`, `phrase('About Us')`, `<T>Pricing</T>`), read from
+ *                       the syntax tree; --call defaults to t,phrase
+ *   --tag a,b           with --catalogs: the elements whose children are the English
+ *                       (default: T)
  *   --prune             with --catalogs: drop every key the scanned code no longer asks
  *                       for, from en-US.json and every locale beside it. Scan EVERY
  *                       codebase that reads the catalog, or this drops what the others use.
@@ -33,6 +35,7 @@ const { values } = parseArgs({
     source: { type: 'string' },
     namespace: { type: 'string', default: 'shared' },
     call: { type: 'string' },
+    tag: { type: 'string', default: 'T' },
     catalogs: { type: 'string' },
     prune: { type: 'boolean', default: false },
   },
@@ -43,12 +46,12 @@ if (!values.code?.length || !values.source === !values.catalogs) {
 }
 
 if (values.catalogs) {
-  await flat(resolve(values.catalogs), (values.call ?? 't,phrase').split(',').map((s) => s.trim()).filter(Boolean))
+  await flat(resolve(values.catalogs), list(values.call ?? 't,phrase'), list(values.tag))
   process.exit(0)
 }
 
 const root = resolve(values.source!)
-const calls = (values.call ?? 't').split(',').map((s) => s.trim()).filter(Boolean)
+const calls = list(values.call ?? 't')
 const found: Key[] = []
 for (const dir of values.code) {
   for await (const path of walk(resolve(dir))) {
@@ -75,15 +78,20 @@ for (const namespace of new Set(found.map((k) => k.namespace))) {
   }
 }
 
+/** `t, phrase` as `['t', 'phrase']`. */
+function list(names: string): string[] {
+  return names.split(',').map((s) => s.trim()).filter(Boolean)
+}
+
 /**
  * The flat catalog: English keys from every `--code` directory into `en-US.json`, and
  * with `--prune`, the keys nobody asks for out of every file beside it.
  */
-async function flat(dir: string, calls: string[]): Promise<void> {
+async function flat(dir: string, calls: string[], tags: string[]): Promise<void> {
   const keys = new Set<string>()
   for (const code of values.code!) {
     for await (const path of walk(resolve(code))) {
-      for (const key of english(await readFile(path, 'utf8'), path, calls)) {
+      for (const key of english(await readFile(path, 'utf8'), path, calls, tags)) {
         keys.add(key)
       }
     }

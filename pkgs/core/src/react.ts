@@ -14,12 +14,14 @@ import {
 } from 'react'
 
 import { loadAccountLocale, saveAccountLocale, type Account } from './account.ts'
+import { format, type Format } from './format.ts'
 import { loaders, type Catalog } from './loaders.ts'
 import { DEFAULT_LOCALE, OFFERED, locales } from './locales.ts'
 import { PAINTED, isolate, pieces, preferenceKey, translate } from './message.ts'
 import { direction, resolve } from './resolve.ts'
 
 export type { Account } from './account.ts'
+export type { Format, Moment, Relative } from './format.ts'
 export type { Catalog } from './loaders.ts'
 
 type Values = Readonly<Record<string, string | number>>
@@ -46,6 +48,8 @@ export interface I18n {
   error: string | null
   setLocale: (locale: string) => Promise<void>
   t: Say
+  /** Figures, money, dates, spans and lists in this locale (`./format.ts`). */
+  format: Format
 }
 
 export interface I18nProviderProps {
@@ -67,6 +71,7 @@ const Context = createContext<I18n>({
   loading: false,
   error: null,
   t: say({}, false),
+  format: format(DEFAULT_LOCALE),
   setLocale: async () => {
     throw new Error('Changing language requires I18nProvider')
   },
@@ -188,6 +193,7 @@ export function I18nProvider({
     return () => stop.abort()
   }, [userId, account?.base, account?.token])
 
+  const formats = useMemo(() => format(state.locale), [state.locale])
   const value = useMemo<I18n>(
     () => ({
       ...state,
@@ -196,8 +202,9 @@ export function I18nProvider({
       error,
       setLocale: select,
       t: say(state.messages, direction(state.locale) === 'rtl'),
+      format: formats,
     }),
-    [state, loading, error, userId, account?.base, account?.token],
+    [state, formats, loading, error, userId, account?.base, account?.token],
   )
   return createElement(Context.Provider, { value }, children)
 }
