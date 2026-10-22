@@ -78,11 +78,35 @@ A string is translated alone. A sentence split around a link
 (`"By continuing, you agree to Hanzo's " + <a>Terms</a>`) cannot be put in another
 language's order: Arabic places the owner after the noun, inside the link, so the
 fragment's translation drops "Hanzo". Pass the whole sentence as one string with the
-link as a placeholder (an argument with no value stays in place) and split on it:
+link as an argument. Give `t` an element and it returns a node, the sentence in the
+reader's order with the element where the translation puts it:
 
 ```tsx
-const [before, after] = t('By continuing, you agree to the {terms}.').split('{terms}')
-return <p>{before}<a href="/terms">{t("Hanzo's Terms of Service")}</a>{after}</p>
+t('By continuing, you agree to the {terms}.', {
+  terms: <a href="/terms">{t("Hanzo's Terms of Service")}</a>,
+})
+```
+
+A figure is an argument too, never concatenated: `t('{n} tokens a second', { n })`.
+
+### Figures in right-to-left prose
+
+In a right-to-left locale each argument is isolated: a string argument is wrapped in
+Unicode's first-strong isolate (`isolate`), an element in `<bdi>`. So `1,150–1,400`
+still reads 1,150 then 1,400, and `~43 tok/s` does not become `tok/s 43~`. A figure
+drawn outside any sentence needs the same: mark it `data-i18n-ltr` (on an inline
+element) or wrap it in `<bdi>`.
+
+### Copy written as data
+
+A menu label written in a data file is translated where it is drawn. Mark it with
+`phrase` so the extractor finds it; `phrase` returns its argument:
+
+```ts
+import { phrase } from '@hanzo/i18n'
+export const MENU = [{ label: phrase('Pricing'), href: '/pricing' }]
+// …
+<a href={item.href}>{t(item.label)}</a>
 ```
 
 ## Everywhere else

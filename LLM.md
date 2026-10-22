@@ -6,7 +6,7 @@ package is `pkgs/core/README.md` (what npm shows); this file is how it is built 
 | path | what | publishes | tests |
 |---|---|---|---|
 | `pkgs/core` → **`@hanzo/i18n`** | `.`: the 79-locale registry (`locales`, `SUPPORTED_LOCALES`), `resolve`, `direction`, `slots`/`parity`, `faults`, file layout, `translate`. `./react`: `I18nProvider`, `LanguagePicker`, `useI18n`, `T`. `./server`: `accept`, `negotiate`, `links`, `alternates`, `sitemap`. `./native`: `detect`, `preferred`. `./boot`: `bootScript`. `./rtl.css`. `./catalogs/*` | yes, by `.github/workflows/publish.yml` | 91 + `test:browser` |
-| `tools/extract` | scan code → missing keys into `source/<ns>/en-US.json` | private | 18 |
+| `tools/extract` | scan code → missing keys into `source/<ns>/en-US.json`, or English keys (`t`, `phrase`) into a flat catalog | private | 23 |
 | `tools/translate` | fill what a locale is missing: `/v1/translate`, chat, a local model, or MADLAD | private | 27 |
 | `tools/validate` | the gate: presence, slots, protected names, script, Chinese variant | private | 20 |
 
@@ -86,6 +86,35 @@ Studio, Gen, Lux, Zoo, Claude Code, Claude, Codex, Cursor, Antigravity, Gemini, 
 GitHub, Google, Apple, OpenAI, Anthropic, Hugging Face) kept in Latin script in every
 locale, and `brands` that are names but need not survive (only excluded from "is this prose").
 
+## How English enters the catalog
+
+`catalogs/en-US.json` is extracted, never typed. Its keys are the English itself, read
+from the syntax tree of every codebase that renders with this package (`tools/extract
+--catalogs`, `src/english.ts`): the first argument of `t(…)` and `phrase(…)` when it is
+a literal, a template with no substitution, or either arm of a choice. A key built at
+runtime is not seen; the literal is wherever the value was written, inside `phrase`.
+A comment is not a call, so a doc example never becomes a key.
+
+```sh
+node --experimental-strip-types tools/extract/src/cli.ts --catalogs pkgs/core/catalogs --prune \
+  --code pkgs/core/src --code <rooms>/src --code <hanzo.ai>/components --code <hanzo.ai>/app --code <hanzo.ai>/lib
+```
+
+`--prune` drops what nobody asks for any more from en-US.json and every locale, so it is
+run over EVERY reader of the catalog at once (this package's picker, `@hanzo/rooms`,
+hanzo.ai), never one. Then translate fills what each locale lacks, and validate gates it.
+
+## `t`: one sentence, its arguments isolated
+
+`t(source, values)` returns a string while every value is text, and a node once one is
+an element, so a link or a styled figure stays inside the one sentence a translator
+reorders (`pieces` cuts a translation at its arguments). In a right-to-left locale
+every argument is isolated — Unicode's first-strong isolate in a string (`isolate`),
+`<bdi>` around an element — because a number or range set in Arabic prose otherwise
+reorders (`1,150–1,400` read `1,400–1,150`). Isolation applies only right to left, so
+an English rendering stays byte for byte what it was. `test:browser` measures the
+range's order in Arabic and fails without it.
+
 ## Catalogs
 
 - **Loading.** `src/loaders.ts` holds one literal `import('../catalogs/<code>.json', { with:
@@ -158,7 +187,9 @@ MADLAD_PYTHON=.venv/bin/python node tools/translate/dist/cli.js --catalogs pkgs/
   --weights Nextcloud-AI/madlad400-3b-mt-ct2-int8@aa32bbdeba7880eff2096ec044cb155a340a9400/model.bin
 ```
 
-Only missing keys are sent, in groups of ≤100 keys / 8 KB; a refused or failed key stays
+Only missing keys are sent, in groups of ≤100 keys / 8 KB, one locale at a time or
+`--jobs n` at once (a server with several slots answers several locales together;
+provenance is saved after each, one save at a time); a refused or failed key stays
 missing so the next run asks again and a reviewer's correction is never overwritten. The
 one exception is a label: a protected name with at most one other word and no slot
 (`Hanzo OS`, `Hanzo.Stack`, `Gen 1`) translates to itself, so when an answer transliterates

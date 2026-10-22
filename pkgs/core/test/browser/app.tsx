@@ -8,6 +8,8 @@ function App({ review }: { review: boolean }) {
     <main>
       <LanguagePicker review={review} />
       <h1>{t('Welcome')}</h1>
+      <p id="range">{t('Prefill at {range} tokens a second', { range: '1,150–1,400' })}</p>
+      <p id="terms">{t('Read the {terms}.', { terms: <a href="/terms">{t('Terms')}</a> })}</p>
       <aside data-side={dir === 'rtl' ? 'right' : 'left'}>{t('Settings')}</aside>
       <code>hanzo status</code>
       <span id="plain" data-i18n-mirror>→</span>
@@ -30,7 +32,14 @@ createRoot(document.getElementById('root')!).render(
         throw new Error('test network error')
       }
       if (code === 'ar' || code.startsWith('ar-')) {
-        return { Welcome: 'مرحبًا', Settings: 'الإعدادات', Language: 'اللغة' }
+        return {
+          Welcome: 'مرحبًا',
+          Settings: 'الإعدادات',
+          Language: 'اللغة',
+          'Prefill at {range} tokens a second': 'ملء مسبق بسرعة {range} رمز في الثانية',
+          'Read the {terms}.': 'اقرأ {terms}.',
+          Terms: 'الشروط',
+        }
       }
       return { Welcome: `Welcome:${code}` }
     }}

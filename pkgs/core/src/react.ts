@@ -1,5 +1,6 @@
 'use client'
 import {
+  Fragment,
   createContext,
   createElement,
   useContext,
@@ -15,13 +16,27 @@ import {
 import { loadAccountLocale, saveAccountLocale, type Account } from './account.ts'
 import { loaders, type Catalog } from './loaders.ts'
 import { DEFAULT_LOCALE, OFFERED, locales } from './locales.ts'
-import { PAINTED, preferenceKey, translate } from './message.ts'
+import { PAINTED, isolate, pieces, preferenceKey, translate } from './message.ts'
 import { direction, resolve } from './resolve.ts'
 
 export type { Account } from './account.ts'
 export type { Catalog } from './loaders.ts'
 
 type Values = Readonly<Record<string, string | number>>
+type Nodes = Readonly<Record<string, ReactNode>>
+
+/**
+ * Authored English in, the reader's language out. Arguments fill `{name}`:
+ * `t('{n} tasks', { n })` is a string; give one argument an element and the whole
+ * message is a node, so a link or a styled figure stays inside ONE sentence that a
+ * translator can reorder — `t('By continuing, you agree to the {terms}.', { terms: <a…/> })`.
+ * In a right-to-left locale each argument is isolated (`<bdi>`, or Unicode's isolate in
+ * a string), so a number, a range or a Latin name keeps its own order in Arabic prose.
+ */
+export interface Say {
+  (source: string, values?: Values): string
+  (source: string, values: Nodes): ReactNode
+}
 
 export interface I18n {
   locale: string
@@ -30,8 +45,7 @@ export interface I18n {
   loading: boolean
   error: string | null
   setLocale: (locale: string) => Promise<void>
-  /** Authored English in, the reader's language out: `t('Hello {name}', { name })`. */
-  t: (source: string, values?: Values) => string
+  t: Say
 }
 
 export interface I18nProviderProps {
@@ -52,7 +66,7 @@ const Context = createContext<I18n>({
   messages: {},
   loading: false,
   error: null,
-  t: (source, values) => translate({}, source, values),
+  t: say({}, false),
   setLocale: async () => {
     throw new Error('Changing language requires I18nProvider')
   },
@@ -181,7 +195,7 @@ export function I18nProvider({
       loading,
       error,
       setLocale: select,
-      t: (source, values) => translate(state.messages, source, values),
+      t: say(state.messages, direction(state.locale) === 'rtl'),
     }),
     [state, loading, error, userId, account?.base, account?.token],
   )
@@ -193,8 +207,33 @@ export function useI18n(): I18n {
 }
 
 /** `<T>Settings</T>` — `t` as an element. */
-export function T({ children, values }: { children: string; values?: Values }): ReactNode {
-  return useI18n().t(children, values)
+export function T({ children, values }: { children: string; values?: Nodes }): ReactNode {
+  return useI18n().t(children, values ?? {})
+}
+
+/** `t` over one catalog: a string while every argument is text, a node once one is not. */
+function say(messages: Readonly<Record<string, string>>, rtl: boolean): Say {
+  return ((source: string, values: Nodes = {}) => {
+    const text = Object.values(values).every((v) => typeof v === 'string' || typeof v === 'number')
+    if (text) {
+      const plain = values as Values
+      return translate(messages, source, rtl ? Object.fromEntries(Object.entries(plain).map(([k, v]) => [k, isolate(String(v))])) : plain)
+    }
+    const parts = pieces(messages, source).map((piece) => {
+      if (typeof piece === 'string') {
+        return piece
+      }
+      if (!Object.hasOwn(values, piece.name)) {
+        return `{${piece.name}}`
+      }
+      const value = values[piece.name]
+      if (!rtl) {
+        return value
+      }
+      return typeof value === 'string' || typeof value === 'number' ? isolate(String(value)) : createElement('bdi', null, value)
+    })
+    return createElement(Fragment, null, ...parts)
+  }) as Say
 }
 
 export interface LanguagePickerProps {
