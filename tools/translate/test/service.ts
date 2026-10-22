@@ -81,7 +81,7 @@ test('a translation that drops a protected name or its {placeholder} is refused,
 test('a local OpenAI-compatible endpoint needs no key and takes template arguments', async () => {
   const sent = serve((body) => {
     const want = JSON.parse((body.messages as { content: string }[])[1].content) as Strings
-    const answer = Object.fromEntries(Object.keys(want).map((k) => [k, `مرحبا ${k}`]))
+    const answer = Object.fromEntries(Object.entries(want).map(([n, english]) => [n, `مرحبا ${english}`]))
     return { choices: [{ finish_reason: 'stop', message: { content: `<think></think>${JSON.stringify(answer)}` } }] }
   })
   const model = chat('jais3-ar', 'http://127.0.0.1:8733/v1/chat/completions', undefined, {
@@ -101,5 +101,17 @@ test('a local OpenAI-compatible endpoint needs no key and takes template argumen
 test('a truncated chat answer is an error, so its keys are asked again', async () => {
   serve(() => ({ choices: [{ finish_reason: 'length', message: { content: '{"a": "A' } }] }))
   const model = chat('zen5', 'https://api.hanzo.ai/v1/chat/completions', 'k')
+  await assert.rejects(fill({ a: 'A' }, {}, 'fr-FR', asking(model)), /truncated/)
+})
+
+test('a streamed chat answer is read whole, and a streamed truncation is still an error', async () => {
+  const events = (...chunks: object[]) => chunks.map((c) => `data: ${JSON.stringify(c)}\n\n`).join('') + 'data: [DONE]\n\n'
+  const stream = (body: string) =>
+    (globalThis.fetch = (async () =>
+      ({ ok: true, status: 200, headers: new Headers({ 'content-type': 'text/event-stream' }), text: async () => body }) as Response) as typeof fetch)
+  stream(events({ choices: [{ delta: { content: '{"1": "Ah' } }] }, { choices: [{ delta: { content: '"}' }, finish_reason: 'stop' }] }))
+  const model = chat('jais3-ar', 'http://127.0.0.1:8733/v1/chat/completions')
+  assert.deepEqual((await fill({ a: 'A' }, {}, 'fr-FR', asking(model))).added, { a: 'Ah' })
+  stream(events({ choices: [{ delta: { content: '{"1": "A' }, finish_reason: 'length' }] }))
   await assert.rejects(fill({ a: 'A' }, {}, 'fr-FR', asking(model)), /truncated/)
 })
