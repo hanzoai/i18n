@@ -1,13 +1,13 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import { SUPPORTED_LOCALES, resolve } from '@hanzo/i18n'
-import { detect, locales } from '../src/index.ts'
+import { SUPPORTED_LOCALES, resolve } from '../src/index.ts'
+import { detect, preferred } from '../src/native.ts'
 
 test('a device preference becomes a locale we ship', () => {
   assert.equal(detect({ locales: () => ['ja-JP'] }), 'ja-JP')
   assert.equal(detect({ locales: () => ['en-GB'] }), 'en-US')
-  assert.equal(detect({ locales: () => ['zh-Hant-HK'] }), 'zh-TW')
+  assert.equal(detect({ locales: () => ['zh-Hant-HK'] }), 'zh-Hant')
 })
 
 test('the phone answers with a list, and order is preference', () => {
@@ -30,13 +30,13 @@ test('detect and resolve cannot disagree', () => {
   }
 })
 
-test('locales() answers a usable tag on any runtime, and never throws', () => {
+test('preferred() answers a usable tag on any runtime, and never throws', () => {
   // The previous assertion here could not fail — `Array.isArray(x) || typeof x
   // === 'object'` is true for every array — so it tested nothing while looking
   // like it tested the fallback. What is actually worth pinning is that whatever
   // this returns is something `resolve` can take: a list of tags, possibly empty
   // on a runtime with no Intl, and never an exception on the render path.
-  const got = locales()
+  const got = preferred()
   assert.ok(Array.isArray(got), 'a list, so resolve can read it as preferences')
   for (const tag of got) {
     assert.equal(typeof tag, 'string')

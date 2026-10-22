@@ -1,0 +1,7 @@
+/* Text follows the document; machine-readable content retains its writing order. */
+:where(html[dir='rtl']) :where(input[type='email'], input[type='url'], pre, code, [data-i18n-ltr]) {
+  direction: ltr;
+  unicode-bidi: isolate;
+  text-align: start;
+}
+:where(html[dir='rtl']) [data-i18n-mirror] { transform: scaleX(-1); }

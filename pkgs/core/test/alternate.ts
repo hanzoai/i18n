@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import { SUPPORTED_LOCALES } from '@hanzo/i18n'
+import { SUPPORTED_LOCALES } from '../src/index.ts'
 import { alternates, links, sitemap, type Site } from '../src/alternate.ts'
 
 const site: Site = { origin: 'https://hanzo.ai' }
@@ -10,7 +10,8 @@ const few: Site = { origin: 'https://hanzo.ai', locales: ['en-US', 'ja-JP'] }
 test('every locale is listed, and so is x-default', () => {
   const all = alternates('/pricing', site)
   assert.equal(all.length, SUPPORTED_LOCALES.length + 1)
-  assert.deepEqual(all[0], { hreflang: 'en-US', href: 'https://hanzo.ai/en-US/pricing' })
+  assert.deepEqual(all.slice(0, -1).map((a) => a.hreflang), [...SUPPORTED_LOCALES])
+  assert.deepEqual(all.find((a) => a.hreflang === 'zh-Hant'), { hreflang: 'zh-Hant', href: 'https://hanzo.ai/zh-Hant/pricing' })
   assert.deepEqual(all.at(-1), { hreflang: 'x-default', href: 'https://hanzo.ai/en-US/pricing' })
 })
 
@@ -105,7 +106,7 @@ function count(text: string, needle: string): number {
 
 test('a sitemap too large to be accepted is refused, not written', () => {
   // One <url> per locale is what makes the set reciprocal and is also what
-  // multiplies the file: 4,000 paths across 14 locales is 56,000 URLs, past the
+  // multiplies the file: 4,000 paths across 36 locales is 144,000 URLs, past the
   // 50,000 a sitemap may hold. Over the limit the file is rejected WHOLE — the
   // failure is no index at all, visible only in Search Console — so the call
   // says so here instead.

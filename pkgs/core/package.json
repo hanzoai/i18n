@@ -1,28 +1,68 @@
 {
   "name": "@hanzo/i18n",
-  "version": "0.1.0",
+  "version": "0.2.0",
+  "description": "Hanzo localization: one locale registry, negotiation, React provider and picker, RTL, and lazily loaded catalogs.",
   "license": "BSD-3-Clause",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hanzoai/i18n.git",
+    "directory": "pkgs/core"
+  },
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
-  "sideEffects": false,
-  "scripts": {
-    "build": "tsc",
-    "prepack": "node ../../scripts/pack.mjs && npm run build",
-    "test": "node --test --experimental-strip-types test/*.ts",
-    "typecheck": "../../node_modules/tsgo/bin/tsc --noEmit --incremental false"
-  },
-  "devDependencies": {
-    "@types/node": "^20.0.0",
-    "typescript": "6.0.3"
-  },
+  "sideEffects": [
+    "*.css"
+  ],
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
-    }
+    },
+    "./react": {
+      "types": "./dist/react.d.ts",
+      "default": "./dist/react.js"
+    },
+    "./server": {
+      "types": "./dist/server.d.ts",
+      "default": "./dist/server.js"
+    },
+    "./native": {
+      "types": "./dist/native.d.ts",
+      "default": "./dist/native.js"
+    },
+    "./rtl.css": "./rtl.css",
+    "./catalogs/*": "./catalogs/*",
+    "./package.json": "./package.json"
   },
   "files": [
-    "dist"
-  ]
+    "dist",
+    "catalogs",
+    "rtl.css"
+  ],
+  "scripts": {
+    "build": "rm -rf dist && tsc",
+    "prepack": "npm run build",
+    "test": "node --test --experimental-strip-types test/*.ts",
+    "test:browser": "node --experimental-strip-types test/browser/run.ts",
+    "typecheck": "../../node_modules/tsgo/bin/tsc --noEmit --incremental false",
+    "validate": "node --experimental-strip-types ../../tools/validate/src/cli.ts --catalogs catalogs --terms terms.json"
+  },
+  "peerDependencies": {
+    "react": ">=18"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/react": "^19.0.0",
+    "esbuild": "^0.28.2",
+    "playwright-core": "~1.63.0",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "typescript": "6.0.3"
+  }
 }

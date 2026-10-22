@@ -1,18 +1,24 @@
 /**
- * The interpolation slots in a message, as bare names, sorted.
+ * The interpolation slots in a message, sorted.
  *
  * This is the ONE definition of what a slot is. The translator that fills a
  * locale and the gate that blocks the PR both ask here, because a toolkit where
  * those two answer separately is a toolkit that writes a translation it will
  * later refuse to ship.
  *
+ * Two syntaxes fill a slot, one per renderer: i18next's `{{name}}`, reported as
+ * the bare name, and the `{name}` argument this package's own `translate`
+ * substitutes, reported WITH its braces. Keeping the braces on the second is what
+ * stops `{{amount}}` → `{amount}` passing parity: same name, and under i18next a
+ * literal `{amount}` on the screen.
+ *
  * Names are trimmed: i18next trims them too, so `{{ count }}` renders exactly as
  * `{{count}}` does and a translator who added a space has broken nothing.
  */
-const SLOT = /\{\{([^{}]*)\}\}/g
+const SLOT = /\{\{([^{}]*)\}\}|\{(\w+)\}/g
 
 export function slots(text: string): string[] {
-  return [...text.matchAll(SLOT)].map((m) => m[1].trim()).sort()
+  return [...text.matchAll(SLOT)].map((m) => (m[1] !== undefined ? m[1].trim() : `{${m[2]}}`)).sort()
 }
 
 /**

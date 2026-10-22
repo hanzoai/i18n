@@ -1,4 +1,5 @@
-import { resolve, type SupportedLocale } from '@hanzo/i18n'
+import { type SupportedLocale } from './locales.ts'
+import { resolve } from './resolve.ts'
 
 /**
  * Entries we will read from one header.

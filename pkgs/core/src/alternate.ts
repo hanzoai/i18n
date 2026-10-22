@@ -1,4 +1,4 @@
-import { DEFAULT_LOCALE, SUPPORTED_LOCALES } from '@hanzo/i18n'
+import { DEFAULT_LOCALE, SUPPORTED_LOCALES } from './locales.ts'
 
 /**
  * Where a site keeps its localized copies.
@@ -73,9 +73,9 @@ export function sitemap(paths: readonly string[], site: Site): string {
   })
 
   // One entry per locale is what makes the set reciprocal, and it is also what
-  // multiplies the file: fourteen locales turn a 2,500-page docs site into 35,000
-  // entries and ~44 MB. Both are past what a sitemap may be — 50,000 URLs and
-  // 50 MB — and a file over either is rejected WHOLE, so the failure is not a
+  // multiplies the file: 36 locales turn a 1,400-page docs site into 50,400
+  // entries, each carrying all 37 alternates. That is past what a sitemap may be —
+  // 50,000 URLs and 50 MB — and a file over either is rejected WHOLE, so the failure is not a
   // truncated index but no index at all, reported nowhere except Search Console.
   //
   // Refused rather than split, because splitting means a sitemap INDEX, and an

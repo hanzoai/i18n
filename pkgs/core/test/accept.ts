@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import { resolve } from '@hanzo/i18n'
+import { resolve } from '../src/index.ts'
 import { accept, negotiate } from '../src/accept.ts'
 
 test('a header is its tags, best first', () => {
@@ -77,9 +77,9 @@ test('a caller may state its own supported set', () => {
 
 test('real browsers', () => {
   assert.equal(negotiate('en-US,en;q=0.9'), 'en-US')
-  assert.equal(negotiate('zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7'), 'zh-TW')
-  assert.equal(negotiate('zh-HK,zh;q=0.9,en;q=0.8'), 'zh-TW')
-  assert.equal(negotiate('pt-BR,pt;q=0.9,en-US;q=0.8'), 'pt-PT')
+  assert.equal(negotiate('zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7'), 'zh-Hant')
+  assert.equal(negotiate('zh-HK,zh;q=0.9,en;q=0.8'), 'zh-Hant')
+  assert.equal(negotiate('pt-BR,pt;q=0.9,en-US;q=0.8'), 'pt-BR')
 })
 
 test('a q with no number is a typo, not a refusal', () => {

@@ -1,4 +1,5 @@
-import { resolve, type SupportedLocale } from '@hanzo/i18n'
+import { type SupportedLocale } from './locales.ts'
+import { resolve } from './resolve.ts'
 
 /**
  * Which language a phone is set to.
@@ -37,13 +38,13 @@ export interface Source {
  * default — the honest answer to "what language is this device" when nothing can
  * say.
  */
-export function locales(): readonly string[] {
+export function preferred(): readonly string[] {
   const tag = intlLocale()
   return tag ? [tag] : []
 }
 
 /** The one locale to render in — device preference, negotiated against what we ship. */
-export function detect(source: Source = { locales }): SupportedLocale {
+export function detect(source: Source = { locales: preferred }): SupportedLocale {
   return resolve(source.locales())
 }
 
