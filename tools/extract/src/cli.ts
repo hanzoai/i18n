@@ -53,7 +53,7 @@ for (const namespace of new Set(found.map((k) => k.namespace))) {
   console.log(`${namespace}: ${added} new, ${Object.keys(after).length} total`)
 
   // A key whose English is its own key renders `swap.confirm` to a person and
-  // then gets translated into thirteen languages exactly that faithfully.
+  // then gets translated into every other language exactly that faithfully.
   const bare = Object.entries(after).filter(([k, v]) => k === v)
   if (bare.length > 0) {
     console.log(`  ${bare.length} awaiting English: ${bare.map(([k]) => k).join(', ')}`)
@@ -78,7 +78,7 @@ async function* walk(dir: string): AsyncGenerator<string> {
  *
  * A bare `JSON.parse` throws "Expected double-quoted property name at position
  * 106", which is true and useless to the person who has to fix it: a run walks
- * fourteen locales across several namespaces, so the one thing the message has
+ * every locale across several namespaces, so the one thing the message has
  * to carry is the path.
  */
 function parse(text: string, path: string): Strings {

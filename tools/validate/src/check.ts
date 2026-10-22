@@ -1,4 +1,4 @@
-import { DEFAULT_LOCALE, parity, slots } from '@hanzo/i18n'
+import { DEFAULT_LOCALE, SOFT, faults, parity, slots, type Terms } from '@hanzo/i18n'
 
 export type Strings = Record<string, string>
 
@@ -14,6 +14,8 @@ export interface Problem {
   locale: string
   key?: string
   what: string
+  /** For a person to look at, not a reason to fail: a loanword can be the right translation. */
+  review?: boolean
 }
 
 /**
@@ -23,10 +25,10 @@ export interface Problem {
  * find: someone fixing translations wants the whole list once, not one line per
  * push.
  */
-export function check(namespace: Namespace, forbid: readonly string[]): Problem[] {
+export function check(namespace: Namespace, forbid: readonly string[], terms: Terms = {}): Problem[] {
   const problems: Problem[] = []
-  const at = (locale: string, what: string, key?: string) =>
-    problems.push({ namespace: namespace.name, locale, key, what })
+  const at = (locale: string, what: string, key?: string, review?: boolean) =>
+    problems.push({ namespace: namespace.name, locale, key, what, ...(review && { review }) })
 
   for (const [key, english] of Object.entries(namespace.source)) {
     for (const term of found(english, forbid)) {
@@ -54,6 +56,9 @@ export function check(namespace: Namespace, forbid: readonly string[]): Problem[
       if (!parity(english, translated)) {
         at(locale, `slots ${show(slots(translated))}, source has ${show(slots(english))}`, key)
       }
+      for (const fault of faults(locale, english, translated, terms)) {
+        at(locale, describe(fault, locale), key, SOFT.has(fault))
+      }
       for (const term of found(translated, forbid)) {
         at(locale, `holds "${term}", which belongs to the product`, key)
       }
@@ -80,5 +85,21 @@ function found(text: string, forbid: readonly string[]): string[] {
 }
 
 function show(list: readonly string[]): string {
-  return list.length === 0 ? 'none' : list.map((s) => `{{${s}}}`).join(' ')
+  // A `{name}` argument is reported with its braces already on; an i18next slot by its bare name.
+  return list.length === 0 ? 'none' : list.map((s) => (s.startsWith('{') ? s : `{{${s}}}`)).join(' ')
+}
+
+function describe(fault: string, locale: string): string {
+  if (fault.startsWith('names:')) {
+    return `drops ${fault.slice('names:'.length).split('+').join(', ')}, which stays as written in every locale`
+  }
+  return (
+    {
+      markup: 'holds script markup',
+      english: 'is identical to the English',
+      script: `is not written in ${locale}'s script`,
+      simplified: 'uses Simplified characters in Traditional Chinese',
+      traditional: 'uses Traditional characters in Simplified Chinese',
+    }[fault] ?? fault
+  )
 }

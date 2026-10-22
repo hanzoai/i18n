@@ -1,4 +1,4 @@
-import { parity } from '@hanzo/i18n'
+import { SOFT, faults, locales, parity, type Terms } from '@hanzo/i18n'
 
 export type Strings = Record<string, string>
 
@@ -7,8 +7,15 @@ export interface Message {
   content: string
 }
 
-/** Something you can ask. `chat` binds one to Hanzo's gateway; a test binds a fake. */
+/** A chat model you can ask. `chat` binds one to an endpoint; a test binds a fake. */
 export type Model = (messages: Message[]) => Promise<string>
+
+/**
+ * Whatever translates one group of strings into one locale, answering by key.
+ * `asking` makes one of a chat model; `service` is `/v1/translate`. The answer is
+ * data: `fill` checks every value and files only what it asked for.
+ */
+export type Engine = (want: Strings, locale: string) => Promise<Record<string, unknown>>
 
 export interface Filled {
   /** Sound translations for keys that had none. */
@@ -33,7 +40,8 @@ export async function fill(
   source: Strings,
   existing: Strings,
   locale: string,
-  model: Model,
+  engine: Engine,
+  terms: Terms = {},
 ): Promise<Filled> {
   const want = missing(source, existing)
   const added: Strings = {}
@@ -47,7 +55,7 @@ export async function fill(
   for (const group of groups) {
     let answer: Record<string, unknown>
     try {
-      answer = read(await model(prompt(group, locale)))
+      answer = await engine(group, locale)
     } catch (error) {
       // One batch failing costs its own keys and nothing else. They stay missing,
       // which is the same state every other refusal leaves them in, so the next
@@ -64,7 +72,7 @@ export async function fill(
     // silently drops a key gets that key reported rather than lost.
     for (const [key, english] of Object.entries(group)) {
       const value = answer[key]
-      if (typeof value === 'string' && value.trim() !== '' && parity(english, value)) {
+      if (typeof value === 'string' && value.trim() !== '' && sound(locale, english, value, terms)) {
         added[key] = value
       } else {
         refused.push(key)
@@ -117,28 +125,60 @@ function batches(want: Strings): Strings[] {
   return out
 }
 
-function prompt(want: Strings, locale: string): Message[] {
+/**
+ * Whether a translation may be written: its slots survive (`parity`) and it has
+ * no fault the gate would fail it for (`faults`) — protected names kept, the
+ * locale's own script, the right Chinese. English-identical prose is written and
+ * left for the gate to list for review, since a loanword can be the translation.
+ */
+function sound(locale: string, english: string, value: string, terms: Terms): boolean {
+  return parity(english, value) && faults(locale, english, value, terms).every((f) => SOFT.has(f))
+}
+
+/** What a model needs told about a locale beyond its tag: the variant, where a tag alone is ambiguous. */
+const NOTES: Record<string, string> = {
+  ar: 'Use Modern Standard Arabic.',
+  bho: 'Write Bhojpuri in Devanagari, not Hindi.',
+  'es-ES': 'Use the Spanish of Spain (ordenador, móvil, vale), not Latin American Spanish.',
+  'es-419': 'Use neutral Latin American Spanish (computadora, celular, ustedes), not the Spanish of Spain.',
+  'zh-Hans': 'Use Simplified Chinese characters and mainland China terminology.',
+  'zh-Hant': 'Use Traditional Chinese characters and Taiwan terminology (軟體, 資料, 網路, 程式); never Simplified characters.',
+  'pt-BR': 'Use Brazilian Portuguese.',
+  nb: 'Use Norwegian Bokmål, not Nynorsk or Danish.',
+}
+
+/** A chat model as an `Engine`: one prompt per group, a JSON object back. */
+export function asking(model: Model, terms: Terms = {}): Engine {
+  return async (want, locale) => read(await model(prompt(want, locale, terms)))
+}
+
+function prompt(want: Strings, locale: string, terms: Terms): Message[] {
+  const named = locales.find((l) => l.code === locale)?.englishName
+  const keep = terms.keep ?? []
+  const lines = [
+    `Translate software interface strings from English into ${named ? `${named} (${locale})` : locale}.`,
+    NOTES[locale],
+    '',
+    'Answer with a JSON object: the same keys, translated values, nothing else.',
+    'Leave every {{slot}} and {placeholder} exactly as written. They are substituted at runtime, so a',
+    'renamed or dropped one prints an empty space where a number or a name belongs.',
+    keep.length > 0
+      ? `Keep these names exactly as written, in Latin script, never translated or transliterated: ${keep.join(', ')}.`
+      : undefined,
+    'Keep product names, ticker symbols, URLs and code identifiers in English.',
+    'Match the register of the source: short, plain, and addressed to one person.',
+  ]
   return [
-    {
-      role: 'system',
-      content: [
-        `Translate software interface strings from English into ${locale}.`,
-        '',
-        'Answer with a JSON object: the same keys, translated values, nothing else.',
-        'Leave every {{slot}} exactly as written. They are substituted at runtime, so a',
-        'renamed or dropped one prints an empty space where a number or a name belongs.',
-        'Keep product names, ticker symbols and code identifiers in English.',
-        'Match the register of the source: short, plain, and addressed to one person.',
-      ].join('\n'),
-    },
+    { role: 'system', content: lines.filter((line) => line !== undefined).join('\n') },
     { role: 'user', content: JSON.stringify(want, null, 2) },
   ]
 }
 
 function read(raw: string): Record<string, unknown> {
   // Asked for an object, a model still sometimes returns one inside a fenced
-  // block, and the fence is not JSON.
+  // block, and the fence is not JSON; a reasoning model may lead with its trace.
   const body = raw
+    .replace(/^\s*<think>[\s\S]*?<\/think>/, '')
     .trim()
     .replace(/^```[a-z]*\n?/i, '')
     .replace(/```$/, '')

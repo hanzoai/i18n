@@ -82,3 +82,34 @@ test('a key a translation has and the source does not is nobody’s problem', ()
   // would be the gate inventing work.
   assert.deepEqual(check(ns({ a: 'A' }, { 'ja-JP': { a: 'あ', old: '古い' } }), []), [])
 })
+
+test('a protected name a translation dropped fails the gate', () => {
+  const terms = { keep: ['Hanzo', 'Claude Code'] }
+  const problems = check(ns({ a: 'Accelerate Claude Code with Hanzo' }, { 'ar': { a: 'سرّع كلود كود مع هانزو' } }), [], terms)
+  assert.equal(line(problems[0]), 'ar/exchange a: drops Claude Code, Hanzo, which stays as written in every locale')
+  assert.equal(problems[0].review, undefined)
+  assert.deepEqual(check(ns({ a: 'Accelerate Claude Code with Hanzo' }, { 'ar': { a: 'سرّع Claude Code مع Hanzo' } }), [], terms), [])
+})
+
+test('the wrong script and the wrong Chinese fail; English-identical prose is only for review', () => {
+  const problems = check(
+    ns(
+      { a: 'Pending Invitations', b: 'Account and organization', c: 'Open source' },
+      { 'ja-JP': { a: 'Pending invites', b: 'アカウントと組織', c: 'オープンソース' }, 'zh-Hant': { a: '待處理邀請', b: '账户和组织机构', c: '開源' }, nl: { a: 'Openstaande uitnodigingen', b: 'Account en organisatie', c: 'Open source' } },
+    ),
+    [],
+  )
+  assert.deepEqual(
+    problems.map((p) => [line(p), p.review ?? false]),
+    [
+      ["ja-JP/exchange a: is not written in ja-JP's script", false],
+      ['zh-Hant/exchange b: uses Simplified characters in Traditional Chinese', false],
+      ['nl/exchange c: is identical to the English', true],
+    ],
+  )
+})
+
+test('a {name} argument is held to parity like a {{slot}}', () => {
+  const problems = check(ns({ a: 'Hello {name}' }, { 'fr-FR': { a: 'Bonjour' } }), [])
+  assert.equal(line(problems[0]), 'fr-FR/exchange a: slots none, source has {name}')
+})
