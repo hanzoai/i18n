@@ -1,6 +1,6 @@
 # @hanzo/i18n
 
-Hanzo's localization in one package: a registry of 36 locales, the negotiation
+Hanzo's localization in one package: a registry of 79 locales, the negotiation
 every surface shares, a React provider and language picker, right-to-left
 layout, and the interface catalogs, each loaded only when chosen.
 
@@ -40,10 +40,20 @@ or API responses through it. Rendering never calls a model.
   a native reader. They load by code, so a person who chose one keeps it, but the
   picker does not offer them and a browser language does not select them.
   `<LanguagePicker review />` offers them.
-- **Right-to-left.** Arabic sets `<html lang dir>`. Lay out with logical properties
-  (`margin-inline-start`, `text-align: start`). `rtl.css` keeps code, URLs, email
-  inputs and `[data-i18n-ltr]` left-to-right, and mirrors `[data-i18n-mirror]` icons.
-  Language names are in their own scripts, never flags.
+- **Right-to-left.** Every locale in Arabic or Hebrew script (Arabic and its regional
+  variants, Persian, Dari, Hebrew, Urdu, Pashto, Central Kurdish, Sindhi, Uyghur,
+  Punjabi in Shahmukhi) sets `<html lang dir="rtl">`. Lay out with logical properties
+  (`margin-inline-start`, `text-align: start`). `rtl.css` selects on `:dir(rtl)`, so it
+  holds on a right-to-left page and inside any `dir="rtl"` region: it keeps code, URLs,
+  email inputs and `[data-i18n-ltr]` left-to-right, and mirrors `[data-i18n-mirror]`
+  icons. Language names are in their own scripts, never flags.
+- **Scripts.** Load a Noto family per script you serve. Urdu and Punjabi (Pakistan) read
+  best in Nastaliq, which needs `line-height` of about 2.2; Noto Naskh Arabic is the
+  compact choice. Persian spells with the zero-width non-joiner (U+200C): do not strip
+  it. Burmese, Khmer, Lao and Thai put no spaces between words, so keep
+  `word-break: normal` and let the browser's dictionary break lines; their stacked marks
+  want `line-height` of 1.7 or more. Georgian has no letter case: do not
+  `text-transform: uppercase` it.
 
 ### Send sentences, not fragments
 
@@ -65,7 +75,8 @@ import { locales, resolve, direction, translate } from '@hanzo/i18n'
 import { negotiate, links, sitemap } from '@hanzo/i18n/server'
 import { detect } from '@hanzo/i18n/native'
 
-resolve(['zh-HK', 'en'])            // 'zh-Hant' — script decides, then region, then order
+resolve(['zh-TW', 'en'])            // 'zh-Hant' — script decides, then region
+resolve('es-CO')                    // 'es-419' — the variant that serves Colombia
 negotiate(request.headers.get('accept-language'))
 links('/pricing', { origin: 'https://hanzo.ai' })   // reciprocal hreflang set, x-default included
 detect()                            // the device's language, negotiated the same way
@@ -75,8 +86,12 @@ Catalogs are also importable directly: `@hanzo/i18n/catalogs/ar.json`.
 
 ## Locales
 
-am, ar, bn, bho, zh-Hans, zh-Hant, da, nl, en-US, fil, fi, fr-FR, de-DE, gu, ha, hi-IN,
-id-ID, it-IT, ja-JP, kn, ko-KR, ml, mr, nb, pt-BR, ru, es-419, es-ES, sw, sv, ta, te, th,
-tr, uk, vi. Every translation is machine-made and validated (placeholders, protected
-names in Latin script, the locale's own script, the right Chinese); `catalogs/provenance.json`
-records the model and run behind each message.
+79 locales: am, ar, ar-EG, ar-LB, ar-MA, ar-SA, hy, as, az, bn, bho, my, ceb, ckb, zh-HK,
+zh-Hans, zh-Hant, da, fa-AF, nl, en-US, fil, fi, fr-CA, fr-FR, ka, de-DE, gu, ht, ha, he,
+hi-IN, id-ID, it-IT, ja-JP, jv, kn, kk, km, ko-KR, ku, ky, lo, ms, ml, mr, mn, ne, nb, or,
+om, ps, fa, pt-BR, pt-PT, pa, pa-PK, ru, sd, si, so, es-AR, es-419, es-MX, es-ES, su, sw,
+sv, tg, ta, te, th, tr, tk, uk, ur, ug, uz, vi. Those in `catalogs/review.json` wait for a
+native reader and are not offered until one clears them. Every translation is
+machine-made and validated (placeholders, protected names in Latin script, the locale's
+own script, the right Chinese); `catalogs/provenance.json` records the model and run
+behind each message.
