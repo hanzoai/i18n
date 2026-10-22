@@ -23,3 +23,9 @@ export function translate(
 export function preferenceKey(userId?: string | null): string {
   return `hanzo.locale.v1:${encodeURIComponent(userId || 'guest')}`
 }
+
+/**
+ * The locale this browser's document last showed, written wherever the provider sets
+ * `<html lang dir>` and read by `bootScript` (`./boot`) before the next first paint.
+ */
+export const PAINTED = 'hanzo.locale.v1.painted'

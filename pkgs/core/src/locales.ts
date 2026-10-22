@@ -118,6 +118,9 @@ export const locales: readonly Locale[] = registry.map((l) => ({ ...l, review: R
 /** The registry's tags, for callers that only negotiate. */
 export const SUPPORTED_LOCALES: readonly SupportedLocale[] = registry.map((l) => l.code)
 
+/** What a browser's own language may select: everything not waiting for review. */
+export const OFFERED: readonly SupportedLocale[] = registry.filter((l) => !REVIEW.includes(l.code)).map((l) => l.code)
+
 export const DEFAULT_LOCALE: SupportedLocale = 'en-US'
 
 /**

@@ -5,7 +5,7 @@ package is `pkgs/core/README.md` (what npm shows); this file is how it is built 
 
 | path | what | publishes | tests |
 |---|---|---|---|
-| `pkgs/core` → **`@hanzo/i18n`** | `.`: the 79-locale registry (`locales`, `SUPPORTED_LOCALES`), `resolve`, `direction`, `slots`/`parity`, `faults`, file layout, `translate`. `./react`: `I18nProvider`, `LanguagePicker`, `useI18n`, `T`. `./server`: `accept`, `negotiate`, `links`, `alternates`, `sitemap`. `./native`: `detect`, `preferred`. `./rtl.css`. `./catalogs/*` | yes, by `.github/workflows/publish.yml` | 82 + `test:browser` |
+| `pkgs/core` → **`@hanzo/i18n`** | `.`: the 79-locale registry (`locales`, `SUPPORTED_LOCALES`), `resolve`, `direction`, `slots`/`parity`, `faults`, file layout, `translate`. `./react`: `I18nProvider`, `LanguagePicker`, `useI18n`, `T`. `./server`: `accept`, `negotiate`, `links`, `alternates`, `sitemap`. `./native`: `detect`, `preferred`. `./boot`: `bootScript`. `./rtl.css`. `./catalogs/*` | yes, by `.github/workflows/publish.yml` | 91 + `test:browser` |
 | `tools/extract` | scan code → missing keys into `source/<ns>/en-US.json` | private | 18 |
 | `tools/translate` | fill what a locale is missing: `/v1/translate`, chat, a local model, or MADLAD | private | 27 |
 | `tools/validate` | the gate: presence, slots, protected names, script, Chinese variant | private | 20 |
@@ -51,6 +51,23 @@ states (`ar` states none, though it maximizes to Egypt). `Intl` canonicalizes `i
 `prs` → `fa-AF`, `kmr` → `ku`; the aliases it does not know are `no` → `nb` and `lah` (what
 `pnb` becomes) → `pa`, so Western Punjabi finds `pa-PK`. Registry order is the picker's (by
 English name) and decides nothing in `resolve`.
+
+## `./boot`: lang and dir before the first paint
+
+The sites are static exports, so `<html lang dir>` would change only when the provider
+hydrates. `bootScript()` (`src/boot.ts`) is a ~1.5 KB head script that sets them first: the
+locale the provider last showed in this browser (`PAINTED`, written wherever the provider
+sets `<html lang dir>`), else the signed-out choice, else `navigator.languages` over
+`OFFERED`. Its tables are built from the registry when the module loads: every tag (`~`
+review, `!` right-to-left), `MACRO`, and step 2 of `resolve` answered per region through
+the same `pick` `resolve` calls, so a new locale or `SERVES` entry reaches the script with
+no edit, and `test/boot.ts` runs it against `resolve` for every registry tag and a table
+of regional, script and alias requests. An account's IAM choice is mirrored into its per-user key and `PAINTED`, so the
+next load opens in it. The provider's first render stays the prerender's English, so
+hydration matches, and its first choice is the script's, so the page keeps one direction.
+`test:browser` hydrates a server-rendered page and records every write to `<html lang
+dir>`: `rtl` while the parser is in the head and before `first-paint`, never turned back,
+no mismatch (without `suppressHydrationWarning`, React reports one).
 
 ## Slots and faults: one definition, asked by both translator and gate
 
@@ -178,8 +195,9 @@ Source imports name the file that exists (`./locales.ts`), so Node runs the tree
 Node REFUSES to strip types under `node_modules` at every version, so a `.ts` `main` is
 unimportable once installed — verify packaging by installing the TARBALL, never from the
 repo. `scripts/verify-package.sh <tgz>` does that where no dev dependency exists: plain
-Node import of `.`, `./server`, `./native`; an esbuild bundle of `./react` + `rtl.css`; a
-strict `tsc` against the declarations under `bundler` and `nodenext`. The workflow
+Node import of `.`, `./server`, `./native`, `./boot`; an esbuild bundle of `./react` +
+`rtl.css`, and one of `./boot` that must hold no React; a strict `tsc` against the
+declarations under `bundler` and `nodenext`. The workflow
 publishes that same tarball. `"sideEffects": ["*.css"]` keeps `rtl.css` from being
 tree-shaken. Tools import `@hanzo/i18n` from its `dist`, so `pnpm test`/`typecheck` build
 core first.

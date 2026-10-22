@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Install a packed @hanzo/i18n tarball where none of this repo's dev dependencies
-# exist, and use it the three ways a consumer does: import it in plain Node,
-# bundle `@hanzo/i18n/react` + `rtl.css` (one lazy chunk per catalog), and
-# typecheck against its declarations. What ships is the tarball, so it is the
+# exist, and use it the ways a consumer does: import it in plain Node, bundle
+# `@hanzo/i18n/react` + `rtl.css` (one lazy chunk per catalog), bundle
+# `@hanzo/i18n/boot` for a server with no React in it, and typecheck against its
+# declarations. What ships is the tarball, so it is the
 # tarball that is checked, never the workspace.
 #
 #   scripts/verify-package.sh path/to/hanzo-i18n-<version>.tgz
@@ -22,10 +23,12 @@ node --input-type=module -e "
   const core = await import('@hanzo/i18n')
   const server = await import('@hanzo/i18n/server')
   const native = await import('@hanzo/i18n/native')
+  const boot = await import('@hanzo/i18n/boot')
   if (core.locales.length !== 79) throw new Error('registry: ' + core.locales.length)
   if (core.resolve('zh-TW') !== 'zh-Hant' || core.direction('ar') !== 'rtl') throw new Error('negotiation')
   if (server.negotiate('es-CO,es;q=0.9') !== 'es-419' || typeof native.detect !== 'function') throw new Error('subpaths')
-  console.log('node: @hanzo/i18n, /server, /native import')
+  if (!/^\(\(\)=>\{try\{.*'rtl'.*\}catch\{\}\}\)\(\)$/.test(boot.bootScript())) throw new Error('boot')
+  console.log('node: @hanzo/i18n, /server, /native, /boot import')
 "
 
 cat > entry.js <<'JS'
@@ -39,14 +42,24 @@ chunks=$(ls out/*.js | wc -l)
 [ "$chunks" -ge 79 ] || { echo "expected the entry plus 78 lazy catalog chunks, got $chunks files" >&2; exit 1; }
 echo "bundle: @hanzo/i18n/react and rtl.css, $chunks chunks"
 
+cat > head.js <<'JS'
+import { bootScript } from '@hanzo/i18n/boot'
+console.log(bootScript().length)
+JS
+npx esbuild head.js --bundle --format=esm --platform=node --metafile=head.json --outfile=head.out.js --log-level=warning
+node -e "if (Object.keys(require('./head.json').inputs).some((p) => /node_modules\/react(-dom)?\//.test(p))) throw new Error('@hanzo/i18n/boot pulls in React')"
+echo "bundle: @hanzo/i18n/boot without React, a $(node head.out.js)-byte script"
+
 cat > check.ts <<'TS'
 import { locales, resolve, type Locale } from '@hanzo/i18n'
 import { I18nProvider, LanguagePicker, useI18n, type I18n } from '@hanzo/i18n/react'
 import { negotiate } from '@hanzo/i18n/server'
+import { bootScript } from '@hanzo/i18n/boot'
+const head: string = bootScript()
 const first: Locale = locales[0]
 const code: string = resolve(first.code)
 const t: I18n['t'] = (s) => s
-export { I18nProvider, LanguagePicker, useI18n, negotiate, code, t }
+export { I18nProvider, LanguagePicker, useI18n, negotiate, code, t, head }
 TS
 for resolution in bundler nodenext; do
   module=$([ "$resolution" = bundler ] && echo esnext || echo nodenext)
