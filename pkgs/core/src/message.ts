@@ -45,6 +45,18 @@ export function translate(
 }
 
 /**
+ * A plain module's `t`: authored English in, a sentence out, `{name}` arguments
+ * filled. A component passes its own (`useI18n().t` from `@hanzo/i18n/react`), so
+ * what the module says is in the reader's language; a caller with none, a spec or
+ * a server, passes nothing and gets `english`. A module that words a sentence
+ * takes it last: `refusal(slug, t = english)`.
+ */
+export type Say = (source: string, values?: Readonly<Record<string, string | number>>) => string
+
+/** The English, with its arguments filled, for a caller that passes no `t`. */
+export const english: Say = (source, values) => translate({}, source, values)
+
+/**
  * Text set apart from the direction around it: Unicode's first-strong isolate.
  *
  * A figure dropped into right-to-left prose is reordered with it — `1,150–1,400`
