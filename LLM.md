@@ -18,7 +18,7 @@ separate and private: they are run from this checkout, not installed.
 ## Content lives here now
 
 This repo was once "toolkit only, no content". It now ships Hanzo's own interface
-catalogs in `pkgs/core/catalogs/` — 425 English-source keys × 79 locales, plus
+catalogs in `pkgs/core/catalogs/` — 1,443 English-source keys × 79 locales, plus
 `provenance.json` and `review.json` — because `@hanzo/rooms` and hanzo.ai consume them as
 one dependency, lazily. That is a deliberate exception to the old rule, for Hanzo's
 shared interface only. Every other product keeps its strings in its own
@@ -81,8 +81,8 @@ never refused (Filipino keeps five loanwords on purpose). `translate` writes onl
 with parity and no hard fault; `validate` fails on exactly those. Answered separately, the
 translator writes what the gate refuses.
 
-`pkgs/core/terms.json` is Hanzo's list: 22 protected names (Hanzo, Zen, Enso, Kai, Dev,
-Studio, Gen, Lux, Zoo, Claude Code, Claude, Codex, Cursor, Antigravity, Gemini, Copilot,
+`pkgs/core/terms.json` is Hanzo's list: 23 protected names (Hanzo, Zen, Enso, Kai, Dev,
+Studio, Gen, Lux, Zoo, Zap, Claude Code, Claude, Codex, Cursor, Antigravity, Gemini, Copilot,
 GitHub, Google, Apple, OpenAI, Anthropic, Hugging Face) kept in Latin script in every
 locale, and `brands` that are names but need not survive (only excluded from "is this prose").
 
@@ -163,6 +163,15 @@ writing "Invalid Date" into a page.
   loads by code, so a person who chose one keeps it, but `LanguagePicker` does not offer it
   (unless the host passes `review`) and a browser language does not select it. A native
   reader clears one by deleting its entry and syncing.
+- **Partial.** A review locale may ship before a run has reached every key, and says so in
+  its own entry: `{ "why": "<why it waits>", "partial": "<what it lacks, and why>" }`.
+  `validate` (`partials` in tools/validate) counts such a locale's missing keys in one review
+  line instead of failing on each, and still checks every key it has; `test/catalogs.ts` lets
+  its loader lack them. A missing key renders English (`translate`). Only a review locale can
+  be partial, so every offered locale is complete; the next run that fills one turns its
+  entry back into the bare reason. 0.5.1 shipped 33 review locales partial: the catalog
+  grew from 425 to 1,443 keys for hanzo.ai's landing, menus, sign-in and app, and Arabic
+  and the offered locales went first.
 - **Sync.** Catalogs are generated outside the repo (GPU runs) and copied in by ONE script:
 
   ```sh
@@ -240,7 +249,24 @@ and are restored after; `tools/translate/madlad.py` is its worker.
 is a refusal. The local mode sends `chat_template_kwargs.reasoning_effort`
 (`TRANSLATION_REASONING`, default `low`) and strips a leading `<think>` block.
 
-Generation that built today's catalogs: Arabic and its four regional variants by **Jais 3**
+**The 0.5.1 run** (2026-10-22): the catalog went from 425 keys to 1,443, 1,161 of them new
+for hanzo.ai's landing, menus, sign-in and app (@hanzo/rooms), and 143 fragments no code
+asks for any more pruned. Arabic and its four variants on Jais 3 on dgx (llama.cpp, 4 slots,
+~17 tokens/s together, ~4 a slot): 1h14m of work, after an 18-minute first try whose groups
+outlived fetch's five-minute wait for headers and were refused (now streamed). halogen on evo
+(4 slots, ~60 tokens/s together) for the 40 other offered locales, about six minutes a
+locale, 3h20m with the leftovers pass. MADLAD-400 3B on dgx's CPU for Burmese, about ten
+minutes; it refused most strings that open on a placeholder or carry a brand, and halogen
+filled the rest. Jais keeps feature names in Latin script, which the `script` fault refuses;
+halogen translated "Zero Trust & Zap" for ar, ar-EG, ar-SA, ar-LB and ar-MA, and the two
+benchmark names it would not ("Kai Decision Suite", "Zen 6 Prefill & Decode") left `t()` as
+names. Finnish now inflects a kept name after a colon (`Hanzo:n`, a note in `NOTES`; the model
+had written "Hazon"), Thai turns English label words into Thai words, and the prompt says a
+feature name of ordinary words is translated. `Zap` joined `terms.json` keep and "Zero Trust"
+its brands. MADLAD wrote one offered string halogen would not: Japanese "Acceptable Use
+Policy". The 33 review locales but ar-MA ship `partial`, for the next run on evo.
+
+Generation that built the first catalogs: Arabic and its four regional variants by **Jais 3**
 (`IFM/Jais-3-32B-GGUF` @ `7f88bd89cbf83ccce89d07776ad11f7bd62cc83b`, `Jais-3-32B-Q4_K_M.gguf`,
 Apache-2.0, on a llama.cpp build with K2 Horizon support, `--jinja`, alias `jais3-ar`,
 reasoning low); Burmese by **MADLAD-400 3B** (`google/madlad400-3b-mt` as
