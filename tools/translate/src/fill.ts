@@ -180,6 +180,8 @@ const NOTES: Record<string, string> = {
   'es-ES': 'Use the Spanish of Spain (ordenador, móvil, vale), not Latin American Spanish.',
   'es-MX': 'Use Mexican Spanish (tú, computadora, celular), not the Spanish of Spain.',
   fa: 'Use standard Iranian Persian; write the zero-width non-joiner (U+200C) where Persian spelling needs it.',
+  fi: 'Inflect a name kept as written by adding its case ending after a colon, as Finnish does for foreign names: Hanzo:n, Hanzo:lla. Never change the name itself.',
+  th: 'Write Thai: a label of English words, such as "Agent Flow" or "Zero Trust", becomes Thai words; only the names above stay in Latin script.',
   'fa-AF': 'Write Dari as used in Afghanistan (کمپیوتر, not رایانه), not Iranian Persian.',
   'fr-CA': 'Use Canadian French as in Quebec software (courriel, clavarder, magasiner), not the French of France.',
   he: 'Use modern Hebrew without vowel points.',
@@ -273,6 +275,7 @@ function prompt(want: Strings, locale: string, terms: Terms): Message[] {
       : undefined,
     'Keep product names, ticker symbols, URLs and code identifiers in English.',
     'Match the register of the source: short, plain, and addressed to one person.',
+    'A feature name made of ordinary words is translated, keeping only the names above as written: "Zero Trust & Zap" keeps Zap and translates "Zero Trust".',
   ]
   return [
     { role: 'system', content: lines.filter((line) => line !== undefined).join('\n') },

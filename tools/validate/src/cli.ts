@@ -23,7 +23,7 @@ import { resolve } from 'node:path'
 import { parseArgs } from 'node:util'
 import { DEFAULT_LOCALE, SUPPORTED_LOCALES, catalog, source, translation, type Terms } from '@hanzo/i18n'
 
-import { check, line, type Problem, type Strings } from './check.ts'
+import { check, line, partials, type Problem, type Strings } from './check.ts'
 
 const { values } = parseArgs({
   options: {
@@ -64,6 +64,9 @@ if (locales.every((l) => l === DEFAULT_LOCALE)) {
 }
 const forbid = values['forbid-literal'] ? list(values['forbid-literal']) : []
 
+// A flat catalog's review.json says which locales under review may lack keys (`partials`).
+const partial = flat ? partials(await reviewIn(`${flat}/review.json`)) : new Set<string>()
+
 let problems = 0
 const review: Problem[] = []
 for (const name of namespaces) {
@@ -79,7 +82,7 @@ for (const name of namespaces) {
     found[locale] = await read(translationOf(locale, name))
   }
 
-  for (const problem of check({ name, source: strings, locales: found }, forbid, terms)) {
+  for (const problem of check({ name, source: strings, locales: found, partial }, forbid, terms)) {
     if (problem.review) {
       review.push(problem)
       continue
@@ -96,8 +99,14 @@ for (const p of review) {
   byLocale.set(where, [...(byLocale.get(where) ?? []), p])
 }
 for (const [where, found] of byLocale) {
-  const keys = found.map((p) => JSON.stringify(p.key))
-  console.log(`review ${where}: ${found.length} identical to the English: ${keys.slice(0, 6).join(', ')}${keys.length > 6 ? ', …' : ''}`)
+  for (const p of found.filter((p) => p.key === undefined)) {
+    console.log(`review ${where}: ${p.what}`)
+  }
+  const same = found.filter((p) => p.key !== undefined)
+  if (same.length > 0) {
+    const keys = same.map((p) => JSON.stringify(p.key))
+    console.log(`review ${where}: ${same.length} identical to the English: ${keys.slice(0, 6).join(', ')}${keys.length > 6 ? ', …' : ''}`)
+  }
 }
 
 if (problems > 0) {
@@ -133,6 +142,17 @@ function parse(text: string, path: string): Strings {
   } catch (err) {
     throw new Error(`${path}: ${(err as Error).message}`)
   }
+}
+
+/** review.json, or no entries where a catalog has none. */
+async function reviewIn(path: string): Promise<Record<string, unknown>> {
+  let text: string
+  try {
+    text = await readFile(path, 'utf8')
+  } catch {
+    return {}
+  }
+  return parse(text, path) as unknown as Record<string, unknown>
 }
 
 /** A product's names, from `--terms`. A file that is not the shape is an error, not an empty list. */

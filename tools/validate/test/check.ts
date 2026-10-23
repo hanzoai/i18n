@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import { check, line, type Namespace } from '../src/check.ts'
+import { check, line, partials, type Namespace } from '../src/check.ts'
 
 const ns = (source: Namespace['source'], locales: Namespace['locales']): Namespace => ({
   name: 'exchange',
@@ -112,4 +112,23 @@ test('the wrong script and the wrong Chinese fail; English-identical prose is on
 test('a {name} argument is held to parity like a {{slot}}', () => {
   const problems = check(ns({ a: 'Hello {name}' }, { 'fr-FR': { a: 'Bonjour' } }), [])
   assert.equal(line(problems[0]), 'fr-FR/exchange a: slots none, source has {name}')
+})
+
+test('a locale review.json marks partial may lack keys, counted once, and is checked on the rest', () => {
+  const source = { a: 'A', b: 'B {{x}}', c: 'C' }
+  const marked = partials({ km: { why: 'not reviewed', partial: 'the keys added today read English' }, lo: 'not reviewed' })
+  assert.deepEqual([...marked], ['km'])
+  const problems = check({ name: 'exchange', source, locales: { km: { b: 'ប {{y}}' }, lo: { a: 'ກ' } }, partial: marked }, [])
+  // km: its one translation is still held to its slots; its two missing keys are one soft line.
+  assert.deepEqual(problems.filter((p) => !p.review).map(line), [
+    'km/exchange b: slots {{y}}, source has {{x}}',
+    'lo/exchange b: is missing',
+    'lo/exchange c: is missing',
+  ])
+  assert.deepEqual(problems.filter((p) => p.review).map(line), ['km/exchange: partial: 2 of 3 not translated yet, read in English'])
+})
+
+test('partial is an explicit entry: a bare reason, or an entry without it, marks nothing', () => {
+  assert.deepEqual([...partials({ am: 'reason', km: { why: 'reason' }, lo: { why: 'r', partial: ' ' } })], [])
+  assert.deepEqual([...partials({ my: { why: 'r', partial: 'the keys added today' } })], ['my'])
 })

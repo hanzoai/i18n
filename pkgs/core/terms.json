@@ -1,7 +1,7 @@
 {
   "keep": [
     "Claude Code", "Claude", "Codex", "Cursor", "Antigravity", "Gemini", "Copilot", "GitHub", "Google", "Apple",
-    "OpenAI", "Anthropic", "Hugging Face", "Hanzo", "Zen", "Enso", "Kai", "Dev", "Studio", "Gen", "Lux", "Zoo"
+    "OpenAI", "Anthropic", "Hugging Face", "Hanzo", "Zen", "Enso", "Kai", "Dev", "Studio", "Gen", "Lux", "Zoo", "Zap"
   ],
-  "brands": ["Traefik", "LiveCodeBench", "Diamond", "Metal"]
+  "brands": ["Traefik", "LiveCodeBench", "Diamond", "Metal", "Zero Trust"]
 }

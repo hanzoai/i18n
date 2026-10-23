@@ -7,6 +7,12 @@ export interface Namespace {
   source: Strings
   /** One entry per locale asked for. `undefined` is a file that is not there. */
   locales: Record<string, Strings | undefined>
+  /**
+   * Locales review.json marks `partial`: waiting for a native reader AND for the
+   * keys the last run did not reach. A key such a locale lacks renders English and
+   * is counted, not failed; every key it has is checked like any other.
+   */
+  partial?: ReadonlySet<string>
 }
 
 export interface Problem {
@@ -16,6 +22,20 @@ export interface Problem {
   what: string
   /** For a person to look at, not a reason to fail: a loanword can be the right translation. */
   review?: boolean
+}
+
+/**
+ * The locales `review.json` lets ship with keys missing: an entry written as
+ * `{ "why": "<why it waits>", "partial": "<what it lacks, and why>" }` rather
+ * than the bare reason. Only a locale under review can be one, so an offered
+ * locale is always complete.
+ */
+export function partials(review: Readonly<Record<string, unknown>>): Set<string> {
+  return new Set(
+    Object.entries(review)
+      .filter(([, entry]) => typeof (entry as { partial?: unknown } | null)?.partial === 'string' && ((entry as { partial: string }).partial.trim() !== ''))
+      .map(([locale]) => locale),
+  )
 }
 
 /**
@@ -47,10 +67,16 @@ export function check(namespace: Namespace, forbid: readonly string[], terms: Te
       continue
     }
 
+    const partial = namespace.partial?.has(locale) ?? false
+    let owed = 0
     for (const [key, english] of Object.entries(namespace.source)) {
       const translated = strings[key]
       if (translated === undefined) {
-        at(locale, 'is missing', key)
+        if (partial) {
+          owed++
+        } else {
+          at(locale, 'is missing', key)
+        }
         continue
       }
       if (!parity(english, translated)) {
@@ -62,6 +88,10 @@ export function check(namespace: Namespace, forbid: readonly string[], terms: Te
       for (const term of found(translated, forbid)) {
         at(locale, `holds "${term}", which belongs to the product`, key)
       }
+    }
+    if (owed > 0) {
+      // One line, for a person: what this locale still reads in English.
+      at(locale, `partial: ${owed} of ${Object.keys(namespace.source).length} not translated yet, read in English`, undefined, true)
     }
   }
 
