@@ -8,7 +8,7 @@ package is `pkgs/core/README.md` (what npm shows); this file is how it is built 
 | `pkgs/core` → **`@hanzo/i18n`** | `.`: the 79-locale registry (`locales`, `SUPPORTED_LOCALES`), `resolve`, `direction`, `slots`/`parity`, `faults`, file layout, `translate`, `format`. `./react`: `I18nProvider`, `LanguagePicker`, `useI18n` (`t`, `format`), `T`. `./server`: `accept`, `negotiate`, `links`, `alternates`, `sitemap`. `./native`: `detect`, `preferred`. `./boot`: `bootScript`. `./rtl.css`. `./catalogs/*` | yes, by `.github/workflows/publish.yml` | 103 + `test:browser` |
 | `tools/extract` | scan code → missing keys into `source/<ns>/en-US.json`, or English keys (`t`, `phrase`, `<T>`) into a flat catalog | private | 29 |
 | `tools/translate` | fill what a locale is missing: `/v1/translate`, chat, a local model, or MADLAD | private | 29 |
-| `tools/validate` | the gate: presence, slots, protected names, script, Chinese variant | private | 20 |
+| `tools/validate` | the gate: presence, slots, protected names, script, Chinese variant | private | 22 |
 
 There used to be seven packages. `@hanzo/i18n-react` (a react-i18next re-export nobody
 imported) is gone; `-server` and `-native` are subpaths of the one package, because a
