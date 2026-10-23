@@ -18,6 +18,6 @@ export { faults, prose, SOFT, type Terms } from './rules.ts'
 
 export { source, translation, catalog, contents } from './files.ts'
 
-export { translate, pieces, isolate, phrase, preferenceKey, type Piece } from './message.ts'
+export { translate, english, pieces, isolate, phrase, preferenceKey, type Piece, type Say } from './message.ts'
 
 export { format, type Format, type Moment, type Relative } from './format.ts'

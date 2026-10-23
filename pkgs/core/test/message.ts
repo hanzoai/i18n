@@ -3,7 +3,7 @@ import test from 'node:test'
 import { createElement, type ReactNode } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 
-import { isolate, phrase, pieces, translate } from '../src/index.ts'
+import { english, isolate, phrase, pieces, translate, type Say } from '../src/index.ts'
 import { useI18n } from '../src/react.ts'
 
 test('pieces cut a translation at its arguments, in the translation’s order', () => {
@@ -19,6 +19,13 @@ test('pieces cut a translation at its arguments, in the translation’s order', 
 
 test('translate is pieces joined, an argument with no value left visible', () => {
   assert.equal(translate({}, '{n} of {total}', { n: 3 }), '3 of {total}')
+})
+
+test('english is a Say: the English with its arguments filled, nothing looked up', () => {
+  const t: Say = english
+  assert.equal(t('Hello, {name}.', { name: 'Ada' }), 'Hello, Ada.')
+  assert.equal(t('{count} left', { count: 3 }), '3 left')
+  assert.equal(t('No {gap} here'), 'No {gap} here')
 })
 
 test('isolate wraps text in a first-strong isolate, invisible in any direction', () => {
