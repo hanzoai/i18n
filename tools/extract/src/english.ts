@@ -5,8 +5,10 @@ import { text } from './jsx.ts'
 /**
  * The English a file asks to have translated, where the English IS the key:
  * `t('Pricing')`, `t("Hanzo's Terms")`, `t(`Sign in`)`, `phrase('About Us')`,
- * and both arms of `t(open ? 'Close' : 'Open')`; and the children of an element
- * that translates them, `<T>Pricing</T>` or `<T values={{ n }}>{'{n} tasks'}</T>`.
+ * and both arms of `t(open ? 'Close' : 'Open')`; and the children of the element
+ * that translates them, `<T>Pricing</T>` or `<T values={{ n }}>{'{n} tasks'}</T>`,
+ * when the file imports it from `@hanzo/i18n/react` (`tags` are the names it is
+ * exported under).
  *
  * Read from the syntax tree, not by pattern: a sentence carries apostrophes, colons
  * and both kinds of quote, and a `t('…')` written inside a comment or a doc example
@@ -22,13 +24,13 @@ export function english(
   const kind = /\.tsx$/.test(file) ? ts.ScriptKind.TSX : /\.jsx$/.test(file) ? ts.ScriptKind.JSX : /\.[cm]?js$/.test(file) ? ts.ScriptKind.JS : ts.ScriptKind.TS
   const tree = ts.createSourceFile(file, code, ts.ScriptTarget.Latest, false, kind)
   const named = new Set(calls)
-  const elements = new Set(tags)
+  const elements = bound(tree, tags)
   const found: string[] = []
   const visit = (node: ts.Node): void => {
     if (ts.isCallExpression(node) && node.arguments.length > 0 && named.has(callee(node.expression))) {
       found.push(...literals(node.arguments[0]))
     }
-    if (ts.isJsxElement(node) && elements.has(callee(node.openingElement.tagName))) {
+    if (ts.isJsxElement(node) && elements.has(tag(node.openingElement.tagName))) {
       found.push(...children(node.children))
     }
     ts.forEachChild(node, visit)
@@ -37,13 +39,57 @@ export function english(
   return found
 }
 
-/** `t` in `t(…)`, `i18n.t(…)` and `this.t(…)`; `T` in `<T>` and `<i18n.T>`. */
-function callee(expression: ts.Expression | ts.JsxTagNameExpression): string {
+/** `t` in `t(…)`, `i18n.t(…)` and `this.t(…)`. */
+function callee(expression: ts.Expression): string {
   if (ts.isIdentifier(expression)) {
     return expression.text
   }
   if (ts.isPropertyAccessExpression(expression)) {
     return expression.name.text
+  }
+  return ''
+}
+
+/** Where the translating element comes from. */
+const MODULE = '@hanzo/i18n/react'
+
+/**
+ * The names this file gives the module's elements: `T` from `import { T }`, `Say`
+ * from `import { T as Say }`, `i18n.T` from `import * as i18n`. An element of the same
+ * name the file defines itself, or imports from anywhere else, is not one: hanzo.ai
+ * draws syntax tokens with a local `<T k="key">import</T>`.
+ */
+function bound(tree: ts.SourceFile, tags: readonly string[]): Set<string> {
+  const names = new Set<string>()
+  for (const statement of tree.statements) {
+    if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier) || statement.moduleSpecifier.text !== MODULE) {
+      continue
+    }
+    const clause = statement.importClause
+    const bindings = clause?.namedBindings
+    if (!clause || clause.isTypeOnly || !bindings) {
+      continue
+    }
+    if (ts.isNamespaceImport(bindings)) {
+      tags.forEach((name) => names.add(`${bindings.name.text}.${name}`))
+      continue
+    }
+    for (const element of bindings.elements) {
+      if (!element.isTypeOnly && tags.includes((element.propertyName ?? element.name).text)) {
+        names.add(element.name.text)
+      }
+    }
+  }
+  return names
+}
+
+/** `T` in `<T>`, `i18n.T` in `<i18n.T>`. */
+function tag(name: ts.JsxTagNameExpression): string {
+  if (ts.isIdentifier(name)) {
+    return name.text
+  }
+  if (ts.isPropertyAccessExpression(name) && ts.isIdentifier(name.expression)) {
+    return `${name.expression.text}.${name.name.text}`
   }
   return ''
 }

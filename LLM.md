@@ -6,7 +6,7 @@ package is `pkgs/core/README.md` (what npm shows); this file is how it is built 
 | path | what | publishes | tests |
 |---|---|---|---|
 | `pkgs/core` → **`@hanzo/i18n`** | `.`: the 79-locale registry (`locales`, `SUPPORTED_LOCALES`), `resolve`, `direction`, `slots`/`parity`, `faults`, file layout, `translate`, `format`. `./react`: `I18nProvider`, `LanguagePicker`, `useI18n` (`t`, `format`), `T`. `./server`: `accept`, `negotiate`, `links`, `alternates`, `sitemap`. `./native`: `detect`, `preferred`. `./boot`: `bootScript`. `./rtl.css`. `./catalogs/*` | yes, by `.github/workflows/publish.yml` | 103 + `test:browser` |
-| `tools/extract` | scan code → missing keys into `source/<ns>/en-US.json`, or English keys (`t`, `phrase`, `<T>`) into a flat catalog | private | 27 |
+| `tools/extract` | scan code → missing keys into `source/<ns>/en-US.json`, or English keys (`t`, `phrase`, `<T>`) into a flat catalog | private | 29 |
 | `tools/translate` | fill what a locale is missing: `/v1/translate`, chat, a local model, or MADLAD | private | 29 |
 | `tools/validate` | the gate: presence, slots, protected names, script, Chinese variant | private | 20 |
 
@@ -92,7 +92,11 @@ locale, and `brands` that are names but need not survive (only excluded from "is
 from the syntax tree of every codebase that renders with this package (`tools/extract
 --catalogs`, `src/english.ts`): the first argument of `t(…)` and `phrase(…)` when it is
 a literal, a template with no substitution, or either arm of a choice; and the children
-of `<T>` (`--tag`) when they are one string. A key built at runtime is not seen; the
+of `<T>` when they are one string. `<T>` counts only where the file imports it from
+`@hanzo/i18n/react`, under the name it gives it (`import { T as Say }` reads `<Say>`,
+`import * as i18n` reads `<i18n.T>`); `--tag` names the export. A `T` the file defines
+or imports from elsewhere is not read: hanzo.ai draws syntax tokens with a local
+`<T k="key">import</T>`, which 0.5.0 turned into 23 keys. A key built at runtime is not seen; the
 literal is wherever the value was written, inside `phrase`. A comment is not a call, so
 a doc example never becomes a key.
 
