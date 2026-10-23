@@ -1658,6 +1658,15 @@
         "keys": [
           "Zero Trust & Zap"
         ]
+      },
+      {
+        "model": "jais3-ar",
+        "weights": "IFM/Jais-3-32B-GGUF@7f88bd89cbf83ccce89d07776ad11f7bd62cc83b/Jais-3-32B-Q4_K_M.gguf",
+        "generatedAt": "2026-10-23T01:48:03.759Z",
+        "sourceSha256": "fd70a846a5e1df1f920b0a682c5f31f2e10a365e06704fcb04bad6e37eadb0f5",
+        "keys": [
+          "Talk to Hanzo"
+        ]
       }
     ]
   },
@@ -48740,6 +48749,15 @@
         "sourceSha256": "07e639c98d59d638abbcb54fa21ade5bcef2a79ef55dedf75524875195bc9e6f",
         "keys": [
           "Zero Trust & Zap"
+        ]
+      },
+      {
+        "model": "jais3-ar",
+        "weights": "IFM/Jais-3-32B-GGUF@7f88bd89cbf83ccce89d07776ad11f7bd62cc83b/Jais-3-32B-Q4_K_M.gguf",
+        "generatedAt": "2026-10-23T01:48:21.187Z",
+        "sourceSha256": "fd70a846a5e1df1f920b0a682c5f31f2e10a365e06704fcb04bad6e37eadb0f5",
+        "keys": [
+          "Talk to Hanzo"
         ]
       }
     ]
