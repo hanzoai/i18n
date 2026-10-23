@@ -12,8 +12,9 @@
  *   --catalogs <dir>    instead of --source: a flat catalog whose keys are the English
  *                       (`t('Pricing')`, `phrase('About Us')`, `<T>Pricing</T>`), read from
  *                       the syntax tree; --call defaults to t,phrase
- *   --tag a,b           with --catalogs: the elements whose children are the English
- *                       (default: T)
+ *   --tag a,b           with --catalogs: the elements @hanzo/i18n/react exports whose
+ *                       children are the English (default: T), read where a file
+ *                       imports them from it, under whatever name
  *   --prune             with --catalogs: drop every key the scanned code no longer asks
  *                       for, from en-US.json and every locale beside it. Scan EVERY
  *                       codebase that reads the catalog, or this drops what the others use.
