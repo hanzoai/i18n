@@ -131,7 +131,8 @@ node --experimental-strip-types tools/extract/src/cli.ts --catalogs pkgs/core/ca
   --code <hanzoai/app at the release hanzo.ai ships>/pkg/{app,mod,glass}/src \
   --code <hanzoai/app main>/pkg/{app,mod,glass}/src \
   --code <hanzo.ai>/node_modules/@hanzo/ui/dist --code <hanzo.ai>/node_modules/@hanzogui/shell/dist \
-  --code <hanzo.ai>/{components,app,lib,hooks,data}
+  --code <hanzo.ai>/{components,app,lib,hooks,data} \
+  --code <platform>/{src,app}
 ```
 
 `--prune` drops what nobody asks for any more from en-US.json and every locale, so it is
@@ -140,8 +141,12 @@ run over EVERY reader of the catalog at once, never one: this package's picker,
 for are dropped), hanzo.ai, and every package hanzo.ai ships that calls `t()` itself
 (@hanzo/ui's composer and model menus, @hanzogui/shell's palette and account menu). Those
 two are read from the dist hanzo.ai's lockfile installs, the version actually shipped; a
-package's `t('…')` survives its compiler as a call with a literal. Then translate fills
-what each locale lacks, and validate gates it. An empty arm of a choice
+package's `t('…')` survives its compiler as a call with a literal. `<platform>` is
+hanzo-inc/platform, the console at platform.hanzo.ai: components and helpers under `src/`,
+routes under `app/`, drawn through this package the way hanzo.ai is (`useI18n().t`, `<T>`,
+`phrase`, helpers taking `t: Say = english` last). It asks for some 8,100 keys, about 650
+of them shared with hanzo.ai, so a run that leaves it out prunes the rest. Then translate
+fills what each locale lacks, and validate gates it. An empty arm of a choice
 (`t(open ? 'Close' : '')`) is not a key.
 
 ## `t`: one sentence, its arguments isolated
