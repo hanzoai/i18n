@@ -5,7 +5,7 @@ package is `pkgs/core/README.md` (what npm shows); this file is how it is built 
 
 | path | what | publishes | tests |
 |---|---|---|---|
-| `pkgs/core` → **`@hanzo/i18n`** | `.`: the 79-locale registry (`locales`, `SUPPORTED_LOCALES`), `resolve`, `direction`, `slots`/`parity`, `faults`, file layout, `translate`, `english` and `Say` (a plain module's `t`: `t: Say = english` last), `format`. `./react`: `I18nProvider`, `LanguagePicker`, `useI18n` (`t`, `format`), `T`. `./server`: `accept`, `negotiate`, `links`, `alternates`, `sitemap`. `./native`: `detect`, `preferred`. `./boot`: `bootScript`. `./rtl.css`. `./catalogs/*` | yes, by `.github/workflows/publish.yml` | 109 + `test:browser` |
+| `pkgs/core` → **`@hanzo/i18n`** | `.`: the 79-locale registry (`locales`, `SUPPORTED_LOCALES`), `resolve`, `direction`, `slots`/`parity`, `faults`, file layout, `translate`, `english` and `Say` (a plain module's `t`: `t: Say = english` last), `format`. `./react`: `I18nProvider` (`loadCatalog` required, `scope`), `LanguagePicker`, `useI18n` (`t`, `format`), `T`. `./bundled`: `bundled`, the shipped catalogs as a `loadCatalog`. `./server`: `accept`, `negotiate`, `links`, `alternates`, `sitemap`. `./native`: `detect`, `preferred`. `./boot`: `bootScript`. `./rtl.css`. `./catalogs/*` | yes, by `.github/workflows/publish.yml` | 110 + `test:browser` |
 | `tools/extract` | scan code → missing keys into `source/<ns>/en-US.json`, or English keys (`t`, `phrase`, `<T>`) into a flat catalog | private | 29 |
 | `tools/translate` | fill what a locale is missing: `/v1/translate`, chat, a local model, or MADLAD | private | 29 |
 | `tools/validate` | the gate: presence, slots, protected names, script, Chinese variant | private | 22 |
@@ -171,7 +171,17 @@ writing "Invalid Date" into a page.
 
 - **Loading.** `src/loaders.ts` holds one literal `import('../catalogs/<code>.json', { with:
   { type: 'json' } })` per locale, so a bundler emits one chunk per catalog (78 + entry;
-  `scripts/verify-package.sh` counts them) and Node imports them natively. The relative path is the same from `src/` and
+  `scripts/verify-package.sh` counts them) and Node imports them natively. They are reached
+  only through `./bundled` (`bundled`, a `loadCatalog`). `I18nProvider` takes `loadCatalog`
+  as a required prop and never names the loaders: while it defaulted to them, every host's
+  build carried all 78 chunks whether it loaded them or not (hanzo.ai's export held 7.8 MB
+  of them at 1,443 keys, and would have held some 130 MB at 12,900).
+- **In parts.** A whole catalog is every key of every reader, and a page draws a few
+  hundred. A host that serves catalogs itself passes `loadCatalog(code, scope)` and
+  `scope`, the part of the site shown; the provider asks for that part with the language
+  and for each new part once on a move, joining the answer to what is shown (`test:browser`
+  counts the asks). hanzo.ai's parts are its sections, read off its own export
+  (`scripts/catalogs.mjs` there). The relative path is the same from `src/` and
   `dist/`. `src/json.d.ts` types them instead of `resolveJsonModule`, which would pull the
   JSON into the program outside `rootDir`.
 - **Review.** `catalogs/review.json` is `{ "<locale>": "<why it waits>" }` (34 locales, below).
@@ -179,13 +189,16 @@ writing "Invalid Date" into a page.
   loads by code, so a person who chose one keeps it, but `LanguagePicker` does not offer it
   (unless the host passes `review`) and a browser language does not select it. A native
   reader clears one by deleting its entry and syncing.
-- **Partial.** A review locale may ship before a run has reached every key, and says so in
-  its own entry: `{ "why": "<why it waits>", "partial": "<what it lacks, and why>" }`.
-  `validate` (`partials` in tools/validate) counts such a locale's missing keys in one review
-  line instead of failing on each, and still checks every key it has; `test/catalogs.ts` lets
-  its loader lack them. A missing key renders English (`translate`). Only a review locale can
-  be partial, so every offered locale is complete; the next run that fills one turns its
-  entry back into the bare reason. 0.5.1 shipped 33 review locales partial: the catalog
+- **Partial.** A locale may ship before a run has reached every key, and says so in its own
+  entry: `{ "why": "<why it waits>", "partial": "<what it lacks, and why>" }` for a review
+  locale, `{ "partial": "…" }` alone for an offered one (still offered; `sync-catalogs.sh`
+  writes into `REVIEW` only the entries with a `why`). `validate` (`partials` in
+  tools/validate) counts such a locale's missing keys in one review line instead of failing
+  on each, and still checks every key it has; `test/catalogs.ts` lets its loader lack them. A
+  missing key renders English (`translate`). The run that fills one turns its entry back into
+  the bare reason, or removes it for an offered locale. Offered locales became partial-able
+  when the catalog grew past what one local machine translates in a day (see the 0.6.0
+  run): the alternative was to drop them from the picker while they filled. 0.5.1 shipped 33 review locales partial: the catalog
   grew from 425 to 1,443 keys for hanzo.ai's landing, menus, sign-in and app, and Arabic
   and the offered locales went first.
 - **Sync.** Catalogs are generated outside the repo (GPU runs) and copied in by ONE script:
@@ -248,7 +261,10 @@ MADLAD_PYTHON=.venv/bin/python node tools/translate/dist/cli.js --catalogs pkgs/
   --weights Nextcloud-AI/madlad400-3b-mt-ct2-int8@aa32bbdeba7880eff2096ec044cb155a340a9400/model.bin
 ```
 
-Only missing keys are sent, in groups of ≤100 keys / 8 KB. `--jobs n` is how many
+Only missing keys are sent, in groups of ≤100 keys / 8 KB. Each group is written as it
+answers (the locale file and that run's provenance entry, whose `keys` grow), so a run that
+stops keeps every group that came back; before 0.6.0 a locale was written only when all its
+groups had answered, and stopping a run lost hours. `--jobs n` is how many
 requests are in flight: every group of every locale joins one line in locale order, so a
 server with n slots answers one locale's groups together and that locale is written first
 (provenance is saved after each, one save at a time). A chat model is sent the strings
