@@ -333,13 +333,29 @@ try {
   assert.deepEqual(await aliceErrors(), [])
   await member.close()
 
+  // A catalog served in parts: the page's part is fetched with the language, a move to
+  // another part fetches that one, what was shown stays, and nothing is fetched twice.
+  const scoped = await browser.newPage()
+  await scoped.goto(`${origin}/?scoped`)
+  await scoped.locator('select').selectOption('ar')
+  await scoped.getByRole('heading', { name: 'مرحبًا' }).waitFor()
+  assert.equal(await scoped.locator('aside').textContent(), 'Settings')
+  await scoped.locator('#move').click()
+  await scoped.locator('aside', { hasText: 'الإعدادات' }).waitFor()
+  assert.equal(await scoped.getByRole('heading').textContent(), 'مرحبًا')
+  await scoped.locator('#move').click()
+  await scoped.locator('#move').click()
+  await scoped.waitForTimeout(200)
+  assert.deepEqual(await scoped.evaluate(() => (window as unknown as { asked: string[] }).asked), ['ar:home', 'ar:settings'])
+  await scoped.close()
+
   console.log(
     `PASS: ${offered} offered (${REVIEW.length} under review: ${REVIEW.join(', ') || 'none'}), Arabic RTL, reload, ` +
       'figures in Arabic (Intl digits, one isolate, a list right to left), ' +
       'account isolation, failed load keeps the language, review locale kept by code, browser language negotiation, ' +
       `${rtl.length} right-to-left locales (${rtl.join(', ')}), :dir(rtl) inside a left-to-right page; ` +
       `bootScript: rtl before the parser reached the body (first paint at ${paint === null ? 'unreported' : `${Math.round(paint)}ms`}), ` +
-      'never turned back, no JS needed, IAM choice mirrored, hydration without a mismatch',
+      'never turned back, no JS needed, IAM choice mirrored, hydration without a mismatch, a catalog loaded in parts',
   )
 } finally {
   await browser.close()

@@ -110,26 +110,36 @@ for (const namespace of namespaces) {
       continue
     }
     // Started, not awaited: every batch joins the gate's line now, in locale order.
+    // Each answered batch is written at once, the locale file and its provenance, so
+    // a run that stops keeps what came back; one provenance run per locale per run,
+    // its keys growing as batches land.
+    const current: Strings = { ...existing }
+    const generatedAt = new Date().toISOString()
+    const run = { model: label, ...(values.weights && { weights: values.weights }), generatedAt, sourceSha256, keys: [] as string[] }
+    const asIs = { model: 'source', note: `label kept as written: ${label} transliterated a protected name`, generatedAt, sourceSha256, keys: [] as string[] }
+    const saved = async ({ added, kept }: { added: Strings; kept: string[] }) => {
+      Object.assign(current, added)
+      await mkdir(dirname(path), { recursive: true })
+      await save(path, contents(current))
+      if (!flat) {
+        return
+      }
+      const entry = (provenance[locale] ??= { review: 'machine-translated; native-speaker review pending', runs: [] })
+      const translated = Object.keys(added).filter((key) => !kept.includes(key))
+      if (translated.length > 0) {
+        if (!entry.runs.includes(run)) entry.runs.push(run)
+        run.keys.push(...translated)
+      }
+      if (kept.length > 0) {
+        if (!entry.runs.includes(asIs)) entry.runs.push(asIs)
+        asIs.keys.push(...kept)
+      }
+      saving = saving.then(() => save(`${flat}/provenance.json`, `${JSON.stringify(provenance, null, 2)}\n`))
+      await saving
+    }
     runs.push(
-      fill(strings, existing, locale, asked, terms).then(
-        async ({ added, refused, kept }) => {
-          if (Object.keys(added).length > 0) {
-            await mkdir(dirname(path), { recursive: true })
-            await writeFile(path, contents({ ...existing, ...added }), 'utf8')
-            if (flat) {
-              const entry = (provenance[locale] ??= { review: 'machine-translated; native-speaker review pending', runs: [] })
-              const generatedAt = new Date().toISOString()
-              const translated = Object.keys(added).filter((key) => !kept.includes(key))
-              if (translated.length > 0) {
-                entry.runs.push({ model: label, ...(values.weights && { weights: values.weights }), generatedAt, sourceSha256, keys: translated })
-              }
-              if (kept.length > 0) {
-                entry.runs.push({ model: 'source', note: `label kept as written: ${label} transliterated a protected name`, generatedAt, sourceSha256, keys: kept })
-              }
-              saving = saving.then(() => save(`${flat}/provenance.json`, `${JSON.stringify(provenance, null, 2)}\n`))
-              await saving
-            }
-          }
+      fill(strings, existing, locale, asked, terms, saved).then(
+        ({ added, refused, kept }) => {
           console.log(`${locale}/${namespace}: ${Object.keys(added).length} of ${owed}${kept.length > 0 ? ` (${kept.length} labels kept as written)` : ''}`)
           if (refused.length > 0) {
             // Left missing on purpose. Writing a translation whose slots do not

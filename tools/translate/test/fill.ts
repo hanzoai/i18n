@@ -158,6 +158,28 @@ test('one batch failing costs its own keys and nothing else', async () => {
   assert.equal(Object.keys(added).length + refused.length, 250, 'every key is accounted for')
 })
 
+test('each batch that answers is saved as it lands, so a run stopped halfway keeps it', async () => {
+  const source: Strings = {}
+  for (let i = 0; i < 250; i++) {
+    source[`k${i}`] = `Message ${i}`
+  }
+  let call = 0
+  const model: Model = async (messages) => {
+    const want = JSON.parse(messages[1].content) as Strings
+    if (++call === 2) {
+      throw new Error('answer was not JSON: <truncated>')
+    }
+    return JSON.stringify(Object.fromEntries(Object.keys(want).map((k) => [k, `x${k}`])))
+  }
+  const saves: string[][] = []
+  const { added, refused } = await fillWith(source, {}, 'fr-FR', asking(model), {}, async ({ added }) => {
+    saves.push(Object.keys(added))
+  })
+  assert.ok(saves.length >= 2, 'one save per batch that answered, not one at the end')
+  assert.deepEqual(saves.flat().sort(), Object.keys(added).sort(), 'everything returned was saved, and nothing else')
+  assert.ok(refused.length > 0 && refused.every((k) => !saves.flat().includes(k)), 'the failed batch saved nothing')
+})
+
 test('every batch failing is an outage and is raised', async () => {
   // Distinguishable from a model getting strings wrong: nothing came back at all,
   // so the caller hears it rather than reading "0 of 250" as a quiet success.

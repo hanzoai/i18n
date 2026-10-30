@@ -128,6 +128,10 @@ test('a locale review.json marks partial may lack keys, counted once, and is che
   assert.deepEqual(problems.filter((p) => p.review).map(line), ['km/exchange: partial: 2 of 3 not translated yet, read in English'])
 })
 
+test('an offered locale a run has not finished is partial by an entry with no why', () => {
+  assert.deepEqual([...partials({ 'fr-FR': { partial: 'the keys added today read English' } })], ['fr-FR'])
+})
+
 test('partial is an explicit entry: a bare reason, or an entry without it, marks nothing', () => {
   assert.deepEqual([...partials({ am: 'reason', km: { why: 'reason' }, lo: { why: 'r', partial: ' ' } })], [])
   assert.deepEqual([...partials({ my: { why: 'r', partial: 'the keys added today' } })], ['my'])

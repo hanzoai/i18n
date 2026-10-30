@@ -35,6 +35,10 @@
       "types": "./dist/boot.d.ts",
       "default": "./dist/boot.js"
     },
+    "./bundled": {
+      "types": "./dist/bundled.d.ts",
+      "default": "./dist/bundled.js"
+    },
     "./rtl.css": "./rtl.css",
     "./catalogs/*": "./catalogs/*",
     "./package.json": "./package.json"

@@ -8,9 +8,9 @@ export interface Namespace {
   /** One entry per locale asked for. `undefined` is a file that is not there. */
   locales: Record<string, Strings | undefined>
   /**
-   * Locales review.json marks `partial`: waiting for a native reader AND for the
-   * keys the last run did not reach. A key such a locale lacks renders English and
-   * is counted, not failed; every key it has is checked like any other.
+   * Locales review.json marks `partial`: waiting for the keys the last run did not
+   * reach (and, with a `why`, for a native reader). A key such a locale lacks renders
+   * English and is counted, not failed; every key it has is checked like any other.
    */
   partial?: ReadonlySet<string>
 }
@@ -27,8 +27,9 @@ export interface Problem {
 /**
  * The locales `review.json` lets ship with keys missing: an entry written as
  * `{ "why": "<why it waits>", "partial": "<what it lacks, and why>" }` rather
- * than the bare reason. Only a locale under review can be one, so an offered
- * locale is always complete.
+ * than the bare reason, or `{ "partial": "…" }` alone for an offered locale a
+ * generation run has not finished. Either way the gap is said, per locale, in
+ * the file; a missing key reads English.
  */
 export function partials(review: Readonly<Record<string, unknown>>): Set<string> {
   return new Set(

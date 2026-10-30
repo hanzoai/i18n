@@ -44,6 +44,7 @@ export async function fill(
   locale: string,
   engine: Engine,
   terms: Terms = {},
+  saved?: (group: Omit<Filled, 'refused'>) => Promise<void>,
 ): Promise<Filled> {
   const want = missing(source, existing)
   const added: Strings = {}
@@ -55,11 +56,15 @@ export async function fill(
 
   // Every batch is asked at once; the engine decides how many are in flight (the
   // CLI's `gate`), so a server with several slots answers one locale's batches together.
+  // Each batch is judged as it answers and handed to `saved`, so a run stopped halfway
+  // keeps every batch that came back: on a local model a locale is hours of work.
   let failure: Error | undefined
-  const answers = await Promise.all(
+  let saving = Promise.resolve()
+  await Promise.all(
     batches(want).map(async (group) => {
+      let answer: Record<string, unknown>
       try {
-        return { group, answer: await engine(group, locale) }
+        answer = await engine(group, locale)
       } catch (error) {
         // One batch failing costs its own keys and nothing else. They stay missing,
         // which is the same state every other refusal leaves them in, so the next
@@ -68,30 +73,32 @@ export async function fill(
         // one truncated reply lost the whole locale, and since the next run asked
         // the identical question it truncated identically. No progress was possible.
         failure = error as Error
-        return { group, answer: undefined }
+        refused.push(...Object.keys(group))
+        return
+      }
+      // Walked over what was ASKED, never over what came back. The answer is data:
+      // a model that returns a key nobody asked for cannot file it, and one that
+      // silently drops a key gets that key reported rather than lost.
+      const mine: Omit<Filled, 'refused'> = { added: {}, kept: [] }
+      for (const [key, english] of Object.entries(group)) {
+        const value = answer[key]
+        if (typeof value === 'string' && value.trim() !== '' && sound(locale, english, value, terms)) {
+          mine.added[key] = value
+        } else if (label(english, terms) && sound(locale, english, english, terms)) {
+          mine.added[key] = english
+          mine.kept.push(key)
+        } else {
+          refused.push(key)
+        }
+      }
+      Object.assign(added, mine.added)
+      kept.push(...mine.kept)
+      if (saved && Object.keys(mine.added).length > 0) {
+        saving = saving.then(() => saved(mine))
+        await saving
       }
     }),
   )
-  for (const { group, answer } of answers) {
-    if (!answer) {
-      refused.push(...Object.keys(group))
-      continue
-    }
-    // Walked over what was ASKED, never over what came back. The answer is data:
-    // a model that returns a key nobody asked for cannot file it, and one that
-    // silently drops a key gets that key reported rather than lost.
-    for (const [key, english] of Object.entries(group)) {
-      const value = answer[key]
-      if (typeof value === 'string' && value.trim() !== '' && sound(locale, english, value, terms)) {
-        added[key] = value
-      } else if (label(english, terms) && sound(locale, english, english, terms)) {
-        added[key] = english
-        kept.push(key)
-      } else {
-        refused.push(key)
-      }
-    }
-  }
 
   // Every batch failed, so this is the endpoint being down rather than a model
   // getting some strings wrong, and the caller should hear it as an error.
