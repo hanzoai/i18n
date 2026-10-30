@@ -18,7 +18,7 @@ separate and private: they are run from this checkout, not installed.
 ## Content lives here now
 
 This repo was once "toolkit only, no content". It now ships Hanzo's own interface
-catalogs in `pkgs/core/catalogs/` — 1,443 English-source keys × 79 locales, plus
+catalogs in `pkgs/core/catalogs/` — 13,510 English-source keys × 79 locales (0.6.0), plus
 `provenance.json` and `review.json` — because `@hanzo/rooms` and hanzo.ai consume them as
 one dependency, lazily. That is a deliberate exception to the old rule, for Hanzo's
 shared interface only. Every other product keeps its strings in its own
@@ -127,12 +127,22 @@ TypeScript and esbuild keep a line break an entity wrote and trim every Unicode 
 
 ```sh
 node --experimental-strip-types tools/extract/src/cli.ts --catalogs pkgs/core/catalogs --prune \
-  --code pkgs/core/src --code <rooms>/src --code <hanzo.ai>/components --code <hanzo.ai>/app --code <hanzo.ai>/lib
+  --code pkgs/core/src \
+  --code <hanzoai/app at the release hanzo.ai ships>/pkg/{app,mod,glass}/src \
+  --code <hanzoai/app main>/pkg/{app,mod,glass}/src \
+  --code <hanzo.ai>/node_modules/@hanzo/ui/dist --code <hanzo.ai>/node_modules/@hanzogui/shell/dist \
+  --code <hanzo.ai>/{components,app,lib,hooks,data}
 ```
 
 `--prune` drops what nobody asks for any more from en-US.json and every locale, so it is
-run over EVERY reader of the catalog at once (this package's picker, `@hanzo/rooms`,
-hanzo.ai), never one. Then translate fills what each locale lacks, and validate gates it.
+run over EVERY reader of the catalog at once, never one: this package's picker,
+@hanzo/app (both the release a host ships and main, or the keys only one of them asks
+for are dropped), hanzo.ai, and every package hanzo.ai ships that calls `t()` itself
+(@hanzo/ui's composer and model menus, @hanzogui/shell's palette and account menu). Those
+two are read from the dist hanzo.ai's lockfile installs, the version actually shipped; a
+package's `t('…')` survives its compiler as a call with a literal. Then translate fills
+what each locale lacks, and validate gates it. An empty arm of a choice
+(`t(open ? 'Close' : '')`) is not a key.
 
 ## `t`: one sentence, its arguments isolated
 
@@ -280,6 +290,20 @@ and are restored after; `tools/translate/madlad.py` is its worker.
 `/v1/translate` gets the protected names as its glossary; an entry it answers with `error`
 is a refusal. The local mode sends `chat_template_kwargs.reasoning_effort`
 (`TRANSLATION_REASONING`, default `low`) and strips a leading `<think>` block.
+
+**The 0.6.0 run** (2026-10-30): hanzo.ai's language PRs (pages c–z, lib data, the app's
+rooms, settings) took the catalog from 1,443 keys to 13,510 (12,168 new, 101 pruned),
+plus @hanzo/ui's 66 and the shell's 358. Measured throughput on local hardware, the job's
+whole cost: Jais 3 on dgx (llama.cpp, 12 slots at 8,192 tokens, q8_0 KV) ran ~2.3–3 tokens
+a second a slot, 28–35 together, ~100–170 keys a minute, about 2 h 10 min for Arabic's
+12,168 new keys; halogen on evo, raised from 4 to 12 slots for the run with a runtime
+systemd drop-in (`/run`, gone on reboot), ~5.4 tokens a second a slot, 55–72 together,
+~140–170 keys a minute, 1 h 25 min for French. At that rate the 40 offered non-Arabic
+locales are some 55 hours of evo and the four Arabic variants some 9 of dgx, so 0.6.0
+ships what was finished and says the rest per locale: Arabic (19 keys short: protected
+names Jais would not keep in Latin), French complete, every other locale `partial`, the
+offered ones still offered. MADLAD-400 3B on dgx's CPU runs Burmese beside them. Each
+release after this one adds the locales the runs have finished.
 
 **The 0.5.1 run** (2026-10-22): the catalog went from 425 keys to 1,443, 1,161 of them new
 for hanzo.ai's landing, menus, sign-in and app (@hanzo/rooms), and 143 fragments no code
