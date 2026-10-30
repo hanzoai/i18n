@@ -14,6 +14,7 @@ import {
 } from 'react'
 
 import { loadAccountLocale, saveAccountLocale, type Account } from './account.ts'
+import { faces } from './faces.ts'
 import { format, type Format } from './format.ts'
 import { loaders, type Catalog } from './loaders.ts'
 import { DEFAULT_LOCALE, OFFERED, locales } from './locales.ts'
@@ -115,6 +116,12 @@ export function I18nProvider({
         return
       }
       const messages = ('default' in loaded ? loaded.default : loaded) as Record<string, string>
+      // The words wait for the face they are set in (./faces.ts), so a script the
+      // page's family lacks appears once, in its companion, and nothing moves after.
+      await faces(messages)
+      if (sequence.current !== request || identity.current !== owner) {
+        return
+      }
       setState({ locale, messages })
       document.documentElement.lang = locale
       document.documentElement.dir = direction(locale)

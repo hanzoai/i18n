@@ -5,7 +5,7 @@ package is `pkgs/core/README.md` (what npm shows); this file is how it is built 
 
 | path | what | publishes | tests |
 |---|---|---|---|
-| `pkgs/core` → **`@hanzo/i18n`** | `.`: the 79-locale registry (`locales`, `SUPPORTED_LOCALES`), `resolve`, `direction`, `slots`/`parity`, `faults`, file layout, `translate`, `english` and `Say` (a plain module's `t`: `t: Say = english` last), `format`. `./react`: `I18nProvider`, `LanguagePicker`, `useI18n` (`t`, `format`), `T`. `./server`: `accept`, `negotiate`, `links`, `alternates`, `sitemap`. `./native`: `detect`, `preferred`. `./boot`: `bootScript`. `./rtl.css`. `./catalogs/*` | yes, by `.github/workflows/publish.yml` | 104 + `test:browser` |
+| `pkgs/core` → **`@hanzo/i18n`** | `.`: the 79-locale registry (`locales`, `SUPPORTED_LOCALES`), `resolve`, `direction`, `slots`/`parity`, `faults`, file layout, `translate`, `english` and `Say` (a plain module's `t`: `t: Say = english` last), `format`. `./react`: `I18nProvider`, `LanguagePicker`, `useI18n` (`t`, `format`), `T`. `./server`: `accept`, `negotiate`, `links`, `alternates`, `sitemap`. `./native`: `detect`, `preferred`. `./boot`: `bootScript`. `./rtl.css`. `./catalogs/*` | yes, by `.github/workflows/publish.yml` | 109 + `test:browser` |
 | `tools/extract` | scan code → missing keys into `source/<ns>/en-US.json`, or English keys (`t`, `phrase`, `<T>`) into a flat catalog | private | 29 |
 | `tools/translate` | fill what a locale is missing: `/v1/translate`, chat, a local model, or MADLAD | private | 29 |
 | `tools/validate` | the gate: presence, slots, protected names, script, Chinese variant | private | 22 |
@@ -68,6 +68,18 @@ hydration matches, and its first choice is the script's, so the page keeps one d
 `test:browser` hydrates a server-rendered page and records every write to `<html lang
 dir>`: `rtl` while the parser is in the head and before `first-paint`, never turned back,
 no mismatch (without `suppressHydrationWarning`, React reports one).
+
+## The words wait for their face
+
+A script the page's family lacks (Arabic under Zen) is drawn by a companion
+`@font-face` with a `unicode-range`, fetched only once one of its letters is laid out.
+The provider's `select` therefore awaits `faces(messages)` (`src/faces.ts`) before it
+shows a catalog: the body's families in order, `document.fonts.load` with the catalog's
+letters, stopping at the first family that has a face for them. Otherwise the words are
+laid out invisibly in the platform's metrics for the face's block period and every box
+after them moves when it lands. Capped at 3 s, the block period, so a face that never
+comes holds the words no longer than it would have hidden them; English (no catalog) and
+a script the first face already draws cost nothing. `test/faces.ts`.
 
 ## Slots and faults: one definition, asked by both translator and gate
 
