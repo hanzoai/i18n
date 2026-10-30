@@ -1,135 +1,267 @@
 {
   "am": {
     "why": "Machine-translated (halogen-qwen3.8-flash-next), not reviewed. Back-translation found wrong meanings (\"runs\" became \"competitions\", \"Reinforcement learning\" became \"learning done by force\") and English left in parentheses.",
-    "partial": "1161 of 1443 keys, those added for hanzo.ai’s landing, menus, sign-in and app on 2026-10-22, read English until the next run reaches this locale."
+    "partial": "13276 of 13510 keys, those added for hanzo.ai’s pages, @hanzo/app, @hanzo/ui and the shell on 2026-10-30, read English until the next run reaches this locale."
   },
-  "bho": {
-    "why": "Machine-translated (halogen-qwen3.8-flash-next), not reviewed. Output mixes Hindi forms into Bhojpuri, and back-translation lost meaning (\"Your profile and how Hanzo looks to you\" came back as \"Your profile icon\").",
-    "partial": "1161 of 1443 keys, those added for hanzo.ai’s landing, menus, sign-in and app on 2026-10-22, read English until the next run reaches this locale."
+  "ar": {
+    "partial": "19 of 13510 keys, those added for hanzo.ai’s pages, @hanzo/app, @hanzo/ui and the shell on 2026-10-30, read English until the next run reaches this locale."
   },
-  "ha": {
-    "why": "Machine-translated (halogen-qwen3.8-flash-next), not reviewed. Back-translation found an invented verb (\"Hanzawa\" for \"Accelerate\") and wrong meanings (\"Every board and its runs\" came back as \"Every board and its contribution\").",
-    "partial": "1161 of 1443 keys, those added for hanzo.ai’s landing, menus, sign-in and app on 2026-10-22, read English until the next run reaches this locale."
+  "ar-EG": {
+    "partial": "11637 of 13510 keys, those added for hanzo.ai’s pages, @hanzo/app, @hanzo/ui and the shell on 2026-10-30, read English until the next run reaches this locale."
   },
-  "fa-AF": {
-    "why": "Machine-translated (halogen-qwen3.8-flash-next), not reviewed. Back-translation spot check chrF 90. Dari vocabulary not verified against Iranian Persian; \"Gen 1\" kept as written.",
-    "partial": "1161 of 1443 keys, those added for hanzo.ai’s landing, menus, sign-in and app on 2026-10-22, read English until the next run reaches this locale."
+  "ar-LB": {
+    "partial": "12168 of 13510 keys, those added for hanzo.ai’s pages, @hanzo/app, @hanzo/ui and the shell on 2026-10-30, read English until the next run reaches this locale."
   },
-  "ps": {
-    "why": "Machine-translated (halogen-qwen3.8-flash-next), not reviewed. Back-translation spot check chrF 86. Back-translation turned \"Secrets, held encrypted\" into \"stored with code\".",
-    "partial": "1161 of 1443 keys, those added for hanzo.ai’s landing, menus, sign-in and app on 2026-10-22, read English until the next run reaches this locale."
+  "ar-MA": {
+    "why": "Machine-translated (Jais 3), not reviewed. Back-translation spot check chrF 71. Jais 3 in formal register reads as Modern Standard Arabic (88 of 425 strings differ from ar by wording, not by Maghrebi vocabulary); Maghreb interfaces are often French.",
+    "partial": "12168 of 13510 keys, those added for hanzo.ai’s pages, @hanzo/app, @hanzo/ui and the shell on 2026-10-30, read English until the next run reaches this locale."
   },
-  "ckb": {
-    "why": "Machine-translated (halogen-qwen3.8-flash-next), not reviewed. Back-translation spot check chrF 73. Back-translation turned \"Start from a template\" into \"Start from screen\" and \"Account and organization\" into \"Account and settings\"; \"Hanzo Gen\" and \"Hanzo Kata\" kept as written.",
-    "partial": "1161 of 1443 keys, those added for hanzo.ai’s landing, menus, sign-in and app on 2026-10-22, read English until the next run reaches this locale."
-  },
-  "sd": {
-    "why": "Machine-translated (halogen-qwen3.8-flash-next), not reviewed. Back-translation spot check chrF 90. Sindhi vocabulary not verified against Urdu.",
-    "partial": "1161 of 1443 keys, those added for hanzo.ai’s landing, menus, sign-in and app on 2026-10-22, read English until the next run reaches this locale."
-  },
-  "ug": {
-    "why": "Machine-translated (halogen-qwen3.8-flash-next), not reviewed. Back-translation spot check chrF 78. Long technical sentences lose precision in back-translation.",
-    "partial": "1161 of 1443 keys, those added for hanzo.ai’s landing, menus, sign-in and app on 2026-10-22, read English until the next run reaches this locale."
-  },
-  "ku": {
-    "why": "Machine-translated (halogen-qwen3.8-flash-next), not reviewed. Back-translation spot check chrF 81. Back-translation turned \"Secrets, held encrypted\" into \"No, they are stored encrypted\".",
-    "partial": "1161 of 1443 keys, those added for hanzo.ai’s landing, menus, sign-in and app on 2026-10-22, read English until the next run reaches this locale."
-  },
-  "az": {
-    "why": "Machine-translated (halogen-qwen3.8-flash-next), not reviewed. Back-translation spot check chrF 84. Turkish interference not checked.",
-    "partial": "1161 of 1443 keys, those added for hanzo.ai’s landing, menus, sign-in and app on 2026-10-22, read English until the next run reaches this locale."
-  },
-  "hy": {
-    "why": "Machine-translated (halogen-qwen3.8-flash-next), not reviewed. Back-translation spot check chrF 79. Back-translation turned \"Start from a template\" into \"Start with a prepared template\".",
-    "partial": "1161 of 1443 keys, those added for hanzo.ai’s landing, menus, sign-in and app on 2026-10-22, read English until the next run reaches this locale."
-  },
-  "ka": {
-    "why": "Machine-translated (halogen-qwen3.8-flash-next), not reviewed. Back-translation spot check chrF 72. Back-translation lost precision on \"Install the Hanzo CLI\".",
-    "partial": "1161 of 1443 keys, those added for hanzo.ai’s landing, menus, sign-in and app on 2026-10-22, read English until the next run reaches this locale."
-  },
-  "om": {
-    "why": "Machine-translated (halogen-qwen3.8-flash-next), not reviewed. Back-translation spot check chrF 57. Weak: \"Start from a template\" came back as \"Start from article\"; English words left in (instaalli, output token).",
-    "partial": "1161 of 1443 keys, those added for hanzo.ai’s landing, menus, sign-in and app on 2026-10-22, read English until the next run reaches this locale."
-  },
-  "so": {
-    "why": "Machine-translated (halogen-qwen3.8-flash-next), not reviewed. Back-translation spot check chrF 37. Weak, expect retranslation: \"Account and organization\" came back as \"Capacity and authority\".",
-    "partial": "1161 of 1443 keys, those added for hanzo.ai’s landing, menus, sign-in and app on 2026-10-22, read English until the next run reaches this locale."
-  },
-  "ar-MA": "Machine-translated (Jais 3), not reviewed. Back-translation spot check chrF 71. Jais 3 in formal register reads as Modern Standard Arabic (88 of 425 strings differ from ar by wording, not by Maghrebi vocabulary); Maghreb interfaces are often French.",
-  "my": {
-    "why": "Machine-translated (MADLAD-400 3B), not reviewed. Back-translation spot check chrF 81. Generated with MADLAD-400 3B; technical terms left in English (sub-millisecond GPU latency, desktop application).",
-    "partial": "1 of 1443 keys, those added for hanzo.ai’s landing, menus, sign-in and app on 2026-10-22, read English until the next run reaches this locale."
-  },
-  "km": {
-    "why": "Machine-translated (halogen-qwen3.8-flash-next), not reviewed. Back-translation spot check chrF 60. Back-translation turned \"Start from a template\" into \"Start sampling model\".",
-    "partial": "1161 of 1443 keys, those added for hanzo.ai’s landing, menus, sign-in and app on 2026-10-22, read English until the next run reaches this locale."
-  },
-  "lo": {
-    "why": "Machine-translated (halogen-qwen3.8-flash-next), not reviewed. Back-translation spot check chrF 78. Back-translation turned \"Account and organization\" into \"Account and members\".",
-    "partial": "1161 of 1443 keys, those added for hanzo.ai’s landing, menus, sign-in and app on 2026-10-22, read English until the next run reaches this locale."
-  },
-  "ne": {
-    "why": "Machine-translated (halogen-qwen3.8-flash-next), not reviewed. Back-translation spot check chrF 88. Nepali vs Hindi vocabulary not verified; \"Gen 1\" kept as written.",
-    "partial": "1161 of 1443 keys, those added for hanzo.ai’s landing, menus, sign-in and app on 2026-10-22, read English until the next run reaches this locale."
-  },
-  "si": {
-    "why": "Machine-translated (halogen-qwen3.8-flash-next), not reviewed. Back-translation spot check chrF 80. Back-translation lost precision on \"Start from a template\".",
-    "partial": "1161 of 1443 keys, those added for hanzo.ai’s landing, menus, sign-in and app on 2026-10-22, read English until the next run reaches this locale."
-  },
-  "pa": {
-    "why": "Machine-translated (halogen-qwen3.8-flash-next), not reviewed. Back-translation spot check chrF 77. Back-translation lost precision on \"Install the Hanzo CLI\".",
-    "partial": "1161 of 1443 keys, those added for hanzo.ai’s landing, menus, sign-in and app on 2026-10-22, read English until the next run reaches this locale."
-  },
-  "pa-PK": {
-    "why": "Machine-translated (halogen-qwen3.8-flash-next), not reviewed. Back-translation spot check chrF 80. The model transliterates Hanzo into Shahmukhi; four product labels kept as written (Hanzo OS, Hanzo University, Hanzo.Stack, Hanzo.Start).",
-    "partial": "1161 of 1443 keys, those added for hanzo.ai’s landing, menus, sign-in and app on 2026-10-22, read English until the next run reaches this locale."
-  },
-  "or": {
-    "why": "Machine-translated (halogen-qwen3.8-flash-next), not reviewed. Back-translation spot check chrF 89. Odia vocabulary not verified.",
-    "partial": "1161 of 1443 keys, those added for hanzo.ai’s landing, menus, sign-in and app on 2026-10-22, read English until the next run reaches this locale."
+  "ar-SA": {
+    "partial": "12168 of 13510 keys, those added for hanzo.ai’s pages, @hanzo/app, @hanzo/ui and the shell on 2026-10-30, read English until the next run reaches this locale."
   },
   "as": {
     "why": "Machine-translated (halogen-qwen3.8-flash-next), not reviewed. Back-translation spot check chrF 85. Back-translation turned \"Every model behind one key.\" into \"One key per model.\"; Assamese vs Bengali not verified.",
-    "partial": "1161 of 1443 keys, those added for hanzo.ai’s landing, menus, sign-in and app on 2026-10-22, read English until the next run reaches this locale."
+    "partial": "13276 of 13510 keys, those added for hanzo.ai’s pages, @hanzo/app, @hanzo/ui and the shell on 2026-10-30, read English until the next run reaches this locale."
   },
-  "mn": {
-    "why": "Machine-translated (halogen-qwen3.8-flash-next), not reviewed. Back-translation spot check chrF 61. Weak: \"Account and organization\" came back as \"Accounting, corporate governance\".",
-    "partial": "1161 of 1443 keys, those added for hanzo.ai’s landing, menus, sign-in and app on 2026-10-22, read English until the next run reaches this locale."
+  "az": {
+    "why": "Machine-translated (halogen-qwen3.8-flash-next), not reviewed. Back-translation spot check chrF 84. Turkish interference not checked.",
+    "partial": "13276 of 13510 keys, those added for hanzo.ai’s pages, @hanzo/app, @hanzo/ui and the shell on 2026-10-30, read English until the next run reaches this locale."
   },
-  "kk": {
-    "why": "Machine-translated (halogen-qwen3.8-flash-next), not reviewed. Back-translation spot check chrF 80. Russian interference not checked.",
-    "partial": "1161 of 1443 keys, those added for hanzo.ai’s landing, menus, sign-in and app on 2026-10-22, read English until the next run reaches this locale."
+  "bho": {
+    "why": "Machine-translated (halogen-qwen3.8-flash-next), not reviewed. Output mixes Hindi forms into Bhojpuri, and back-translation lost meaning (\"Your profile and how Hanzo looks to you\" came back as \"Your profile icon\").",
+    "partial": "13276 of 13510 keys, those added for hanzo.ai’s pages, @hanzo/app, @hanzo/ui and the shell on 2026-10-30, read English until the next run reaches this locale."
   },
-  "uz": {
-    "why": "Machine-translated (halogen-qwen3.8-flash-next), not reviewed. Back-translation spot check chrF 82. Back-translation turned \"Start from a template\" into \"Select a template to get started\".",
-    "partial": "1161 of 1443 keys, those added for hanzo.ai’s landing, menus, sign-in and app on 2026-10-22, read English until the next run reaches this locale."
-  },
-  "ky": {
-    "why": "Machine-translated (halogen-qwen3.8-flash-next), not reviewed. Back-translation spot check chrF 85. Back-translation turned \"Start from a template\" into \"Start from example\".",
-    "partial": "1161 of 1443 keys, those added for hanzo.ai’s landing, menus, sign-in and app on 2026-10-22, read English until the next run reaches this locale."
-  },
-  "tg": {
-    "why": "Machine-translated (halogen-qwen3.8-flash-next), not reviewed. Back-translation spot check chrF 82. \"Gen 1\" kept as written; Persian-script interference not checked.",
-    "partial": "1161 of 1443 keys, those added for hanzo.ai’s landing, menus, sign-in and app on 2026-10-22, read English until the next run reaches this locale."
-  },
-  "tk": {
-    "why": "Machine-translated (halogen-qwen3.8-flash-next), not reviewed. Back-translation spot check chrF 79. Back-translation turned \"Every model behind one key.\" into \"All models with one key.\".",
-    "partial": "1161 of 1443 keys, those added for hanzo.ai’s landing, menus, sign-in and app on 2026-10-22, read English until the next run reaches this locale."
-  },
-  "jv": {
-    "why": "Machine-translated (halogen-qwen3.8-flash-next), not reviewed. Back-translation spot check chrF 87. Back-translation turned \"Secrets, held encrypted\" into \"Password stored with encryption\"; register (ngoko/krama) not verified.",
-    "partial": "1161 of 1443 keys, those added for hanzo.ai’s landing, menus, sign-in and app on 2026-10-22, read English until the next run reaches this locale."
-  },
-  "su": {
-    "why": "Machine-translated (halogen-qwen3.8-flash-next), not reviewed. Back-translation spot check chrF 78. Back-translation turned \"Every model behind one key.\" into \"All models below one key.\".",
-    "partial": "1161 of 1443 keys, those added for hanzo.ai’s landing, menus, sign-in and app on 2026-10-22, read English until the next run reaches this locale."
+  "bn": {
+    "partial": "12168 of 13510 keys, those added for hanzo.ai’s pages, @hanzo/app, @hanzo/ui and the shell on 2026-10-30, read English until the next run reaches this locale."
   },
   "ceb": {
     "why": "Machine-translated (halogen-qwen3.8-flash-next), not reviewed. Back-translation spot check chrF 90. Tagalog interference not checked.",
-    "partial": "1161 of 1443 keys, those added for hanzo.ai’s landing, menus, sign-in and app on 2026-10-22, read English until the next run reaches this locale."
+    "partial": "13276 of 13510 keys, those added for hanzo.ai’s pages, @hanzo/app, @hanzo/ui and the shell on 2026-10-30, read English until the next run reaches this locale."
+  },
+  "ckb": {
+    "why": "Machine-translated (halogen-qwen3.8-flash-next), not reviewed. Back-translation spot check chrF 73. Back-translation turned \"Start from a template\" into \"Start from screen\" and \"Account and organization\" into \"Account and settings\"; \"Hanzo Gen\" and \"Hanzo Kata\" kept as written.",
+    "partial": "13276 of 13510 keys, those added for hanzo.ai’s pages, @hanzo/app, @hanzo/ui and the shell on 2026-10-30, read English until the next run reaches this locale."
+  },
+  "da": {
+    "partial": "12168 of 13510 keys, those added for hanzo.ai’s pages, @hanzo/app, @hanzo/ui and the shell on 2026-10-30, read English until the next run reaches this locale."
+  },
+  "de-DE": {
+    "partial": "7681 of 13510 keys, those added for hanzo.ai’s pages, @hanzo/app, @hanzo/ui and the shell on 2026-10-30, read English until the next run reaches this locale."
+  },
+  "es-419": {
+    "partial": "12168 of 13510 keys, those added for hanzo.ai’s pages, @hanzo/app, @hanzo/ui and the shell on 2026-10-30, read English until the next run reaches this locale."
+  },
+  "es-AR": {
+    "partial": "12168 of 13510 keys, those added for hanzo.ai’s pages, @hanzo/app, @hanzo/ui and the shell on 2026-10-30, read English until the next run reaches this locale."
+  },
+  "es-ES": {
+    "partial": "12168 of 13510 keys, those added for hanzo.ai’s pages, @hanzo/app, @hanzo/ui and the shell on 2026-10-30, read English until the next run reaches this locale."
+  },
+  "es-MX": {
+    "partial": "12168 of 13510 keys, those added for hanzo.ai’s pages, @hanzo/app, @hanzo/ui and the shell on 2026-10-30, read English until the next run reaches this locale."
+  },
+  "fa": {
+    "partial": "12168 of 13510 keys, those added for hanzo.ai’s pages, @hanzo/app, @hanzo/ui and the shell on 2026-10-30, read English until the next run reaches this locale."
+  },
+  "fa-AF": {
+    "why": "Machine-translated (halogen-qwen3.8-flash-next), not reviewed. Back-translation spot check chrF 90. Dari vocabulary not verified against Iranian Persian; \"Gen 1\" kept as written.",
+    "partial": "13276 of 13510 keys, those added for hanzo.ai’s pages, @hanzo/app, @hanzo/ui and the shell on 2026-10-30, read English until the next run reaches this locale."
+  },
+  "fi": {
+    "partial": "12168 of 13510 keys, those added for hanzo.ai’s pages, @hanzo/app, @hanzo/ui and the shell on 2026-10-30, read English until the next run reaches this locale."
+  },
+  "fil": {
+    "partial": "12168 of 13510 keys, those added for hanzo.ai’s pages, @hanzo/app, @hanzo/ui and the shell on 2026-10-30, read English until the next run reaches this locale."
+  },
+  "fr-CA": {
+    "partial": "12168 of 13510 keys, those added for hanzo.ai’s pages, @hanzo/app, @hanzo/ui and the shell on 2026-10-30, read English until the next run reaches this locale."
+  },
+  "gu": {
+    "partial": "12168 of 13510 keys, those added for hanzo.ai’s pages, @hanzo/app, @hanzo/ui and the shell on 2026-10-30, read English until the next run reaches this locale."
+  },
+  "ha": {
+    "why": "Machine-translated (halogen-qwen3.8-flash-next), not reviewed. Back-translation found an invented verb (\"Hanzawa\" for \"Accelerate\") and wrong meanings (\"Every board and its runs\" came back as \"Every board and its contribution\").",
+    "partial": "13276 of 13510 keys, those added for hanzo.ai’s pages, @hanzo/app, @hanzo/ui and the shell on 2026-10-30, read English until the next run reaches this locale."
+  },
+  "he": {
+    "partial": "12168 of 13510 keys, those added for hanzo.ai’s pages, @hanzo/app, @hanzo/ui and the shell on 2026-10-30, read English until the next run reaches this locale."
+  },
+  "hi-IN": {
+    "partial": "12168 of 13510 keys, those added for hanzo.ai’s pages, @hanzo/app, @hanzo/ui and the shell on 2026-10-30, read English until the next run reaches this locale."
   },
   "ht": {
     "why": "Machine-translated (halogen-qwen3.8-flash-next), not reviewed. Back-translation spot check chrF 78. Back-translation lost precision on \"Start from a template\".",
-    "partial": "1161 of 1443 keys, those added for hanzo.ai’s landing, menus, sign-in and app on 2026-10-22, read English until the next run reaches this locale."
+    "partial": "13276 of 13510 keys, those added for hanzo.ai’s pages, @hanzo/app, @hanzo/ui and the shell on 2026-10-30, read English until the next run reaches this locale."
+  },
+  "hy": {
+    "why": "Machine-translated (halogen-qwen3.8-flash-next), not reviewed. Back-translation spot check chrF 79. Back-translation turned \"Start from a template\" into \"Start with a prepared template\".",
+    "partial": "13276 of 13510 keys, those added for hanzo.ai’s pages, @hanzo/app, @hanzo/ui and the shell on 2026-10-30, read English until the next run reaches this locale."
+  },
+  "id-ID": {
+    "partial": "12168 of 13510 keys, those added for hanzo.ai’s pages, @hanzo/app, @hanzo/ui and the shell on 2026-10-30, read English until the next run reaches this locale."
+  },
+  "it-IT": {
+    "partial": "12168 of 13510 keys, those added for hanzo.ai’s pages, @hanzo/app, @hanzo/ui and the shell on 2026-10-30, read English until the next run reaches this locale."
+  },
+  "ja-JP": {
+    "partial": "12168 of 13510 keys, those added for hanzo.ai’s pages, @hanzo/app, @hanzo/ui and the shell on 2026-10-30, read English until the next run reaches this locale."
+  },
+  "jv": {
+    "why": "Machine-translated (halogen-qwen3.8-flash-next), not reviewed. Back-translation spot check chrF 87. Back-translation turned \"Secrets, held encrypted\" into \"Password stored with encryption\"; register (ngoko/krama) not verified.",
+    "partial": "13276 of 13510 keys, those added for hanzo.ai’s pages, @hanzo/app, @hanzo/ui and the shell on 2026-10-30, read English until the next run reaches this locale."
+  },
+  "ka": {
+    "why": "Machine-translated (halogen-qwen3.8-flash-next), not reviewed. Back-translation spot check chrF 72. Back-translation lost precision on \"Install the Hanzo CLI\".",
+    "partial": "13276 of 13510 keys, those added for hanzo.ai’s pages, @hanzo/app, @hanzo/ui and the shell on 2026-10-30, read English until the next run reaches this locale."
+  },
+  "kk": {
+    "why": "Machine-translated (halogen-qwen3.8-flash-next), not reviewed. Back-translation spot check chrF 80. Russian interference not checked.",
+    "partial": "13276 of 13510 keys, those added for hanzo.ai’s pages, @hanzo/app, @hanzo/ui and the shell on 2026-10-30, read English until the next run reaches this locale."
+  },
+  "km": {
+    "why": "Machine-translated (halogen-qwen3.8-flash-next), not reviewed. Back-translation spot check chrF 60. Back-translation turned \"Start from a template\" into \"Start sampling model\".",
+    "partial": "13276 of 13510 keys, those added for hanzo.ai’s pages, @hanzo/app, @hanzo/ui and the shell on 2026-10-30, read English until the next run reaches this locale."
+  },
+  "kn": {
+    "partial": "12168 of 13510 keys, those added for hanzo.ai’s pages, @hanzo/app, @hanzo/ui and the shell on 2026-10-30, read English until the next run reaches this locale."
+  },
+  "ko-KR": {
+    "partial": "12168 of 13510 keys, those added for hanzo.ai’s pages, @hanzo/app, @hanzo/ui and the shell on 2026-10-30, read English until the next run reaches this locale."
+  },
+  "ku": {
+    "why": "Machine-translated (halogen-qwen3.8-flash-next), not reviewed. Back-translation spot check chrF 81. Back-translation turned \"Secrets, held encrypted\" into \"No, they are stored encrypted\".",
+    "partial": "13276 of 13510 keys, those added for hanzo.ai’s pages, @hanzo/app, @hanzo/ui and the shell on 2026-10-30, read English until the next run reaches this locale."
+  },
+  "ky": {
+    "why": "Machine-translated (halogen-qwen3.8-flash-next), not reviewed. Back-translation spot check chrF 85. Back-translation turned \"Start from a template\" into \"Start from example\".",
+    "partial": "13276 of 13510 keys, those added for hanzo.ai’s pages, @hanzo/app, @hanzo/ui and the shell on 2026-10-30, read English until the next run reaches this locale."
+  },
+  "lo": {
+    "why": "Machine-translated (halogen-qwen3.8-flash-next), not reviewed. Back-translation spot check chrF 78. Back-translation turned \"Account and organization\" into \"Account and members\".",
+    "partial": "13276 of 13510 keys, those added for hanzo.ai’s pages, @hanzo/app, @hanzo/ui and the shell on 2026-10-30, read English until the next run reaches this locale."
+  },
+  "ml": {
+    "partial": "12168 of 13510 keys, those added for hanzo.ai’s pages, @hanzo/app, @hanzo/ui and the shell on 2026-10-30, read English until the next run reaches this locale."
+  },
+  "mn": {
+    "why": "Machine-translated (halogen-qwen3.8-flash-next), not reviewed. Back-translation spot check chrF 61. Weak: \"Account and organization\" came back as \"Accounting, corporate governance\".",
+    "partial": "13276 of 13510 keys, those added for hanzo.ai’s pages, @hanzo/app, @hanzo/ui and the shell on 2026-10-30, read English until the next run reaches this locale."
+  },
+  "mr": {
+    "partial": "12168 of 13510 keys, those added for hanzo.ai’s pages, @hanzo/app, @hanzo/ui and the shell on 2026-10-30, read English until the next run reaches this locale."
+  },
+  "ms": {
+    "partial": "12168 of 13510 keys, those added for hanzo.ai’s pages, @hanzo/app, @hanzo/ui and the shell on 2026-10-30, read English until the next run reaches this locale."
+  },
+  "my": {
+    "why": "Machine-translated (MADLAD-400 3B), not reviewed. Back-translation spot check chrF 81. Generated with MADLAD-400 3B; technical terms left in English (sub-millisecond GPU latency, desktop application).",
+    "partial": "11934 of 13510 keys, those added for hanzo.ai’s pages, @hanzo/app, @hanzo/ui and the shell on 2026-10-30, read English until the next run reaches this locale."
+  },
+  "nb": {
+    "partial": "12168 of 13510 keys, those added for hanzo.ai’s pages, @hanzo/app, @hanzo/ui and the shell on 2026-10-30, read English until the next run reaches this locale."
+  },
+  "ne": {
+    "why": "Machine-translated (halogen-qwen3.8-flash-next), not reviewed. Back-translation spot check chrF 88. Nepali vs Hindi vocabulary not verified; \"Gen 1\" kept as written.",
+    "partial": "13276 of 13510 keys, those added for hanzo.ai’s pages, @hanzo/app, @hanzo/ui and the shell on 2026-10-30, read English until the next run reaches this locale."
+  },
+  "nl": {
+    "partial": "12168 of 13510 keys, those added for hanzo.ai’s pages, @hanzo/app, @hanzo/ui and the shell on 2026-10-30, read English until the next run reaches this locale."
+  },
+  "om": {
+    "why": "Machine-translated (halogen-qwen3.8-flash-next), not reviewed. Back-translation spot check chrF 57. Weak: \"Start from a template\" came back as \"Start from article\"; English words left in (instaalli, output token).",
+    "partial": "13276 of 13510 keys, those added for hanzo.ai’s pages, @hanzo/app, @hanzo/ui and the shell on 2026-10-30, read English until the next run reaches this locale."
+  },
+  "or": {
+    "why": "Machine-translated (halogen-qwen3.8-flash-next), not reviewed. Back-translation spot check chrF 89. Odia vocabulary not verified.",
+    "partial": "13276 of 13510 keys, those added for hanzo.ai’s pages, @hanzo/app, @hanzo/ui and the shell on 2026-10-30, read English until the next run reaches this locale."
+  },
+  "pa": {
+    "why": "Machine-translated (halogen-qwen3.8-flash-next), not reviewed. Back-translation spot check chrF 77. Back-translation lost precision on \"Install the Hanzo CLI\".",
+    "partial": "13276 of 13510 keys, those added for hanzo.ai’s pages, @hanzo/app, @hanzo/ui and the shell on 2026-10-30, read English until the next run reaches this locale."
+  },
+  "pa-PK": {
+    "why": "Machine-translated (halogen-qwen3.8-flash-next), not reviewed. Back-translation spot check chrF 80. The model transliterates Hanzo into Shahmukhi; four product labels kept as written (Hanzo OS, Hanzo University, Hanzo.Stack, Hanzo.Start).",
+    "partial": "13276 of 13510 keys, those added for hanzo.ai’s pages, @hanzo/app, @hanzo/ui and the shell on 2026-10-30, read English until the next run reaches this locale."
+  },
+  "ps": {
+    "why": "Machine-translated (halogen-qwen3.8-flash-next), not reviewed. Back-translation spot check chrF 86. Back-translation turned \"Secrets, held encrypted\" into \"stored with code\".",
+    "partial": "13276 of 13510 keys, those added for hanzo.ai’s pages, @hanzo/app, @hanzo/ui and the shell on 2026-10-30, read English until the next run reaches this locale."
+  },
+  "pt-BR": {
+    "partial": "12168 of 13510 keys, those added for hanzo.ai’s pages, @hanzo/app, @hanzo/ui and the shell on 2026-10-30, read English until the next run reaches this locale."
+  },
+  "pt-PT": {
+    "partial": "12168 of 13510 keys, those added for hanzo.ai’s pages, @hanzo/app, @hanzo/ui and the shell on 2026-10-30, read English until the next run reaches this locale."
+  },
+  "ru": {
+    "partial": "12168 of 13510 keys, those added for hanzo.ai’s pages, @hanzo/app, @hanzo/ui and the shell on 2026-10-30, read English until the next run reaches this locale."
+  },
+  "sd": {
+    "why": "Machine-translated (halogen-qwen3.8-flash-next), not reviewed. Back-translation spot check chrF 90. Sindhi vocabulary not verified against Urdu.",
+    "partial": "13276 of 13510 keys, those added for hanzo.ai’s pages, @hanzo/app, @hanzo/ui and the shell on 2026-10-30, read English until the next run reaches this locale."
+  },
+  "si": {
+    "why": "Machine-translated (halogen-qwen3.8-flash-next), not reviewed. Back-translation spot check chrF 80. Back-translation lost precision on \"Start from a template\".",
+    "partial": "13276 of 13510 keys, those added for hanzo.ai’s pages, @hanzo/app, @hanzo/ui and the shell on 2026-10-30, read English until the next run reaches this locale."
+  },
+  "so": {
+    "why": "Machine-translated (halogen-qwen3.8-flash-next), not reviewed. Back-translation spot check chrF 37. Weak, expect retranslation: \"Account and organization\" came back as \"Capacity and authority\".",
+    "partial": "13276 of 13510 keys, those added for hanzo.ai’s pages, @hanzo/app, @hanzo/ui and the shell on 2026-10-30, read English until the next run reaches this locale."
+  },
+  "su": {
+    "why": "Machine-translated (halogen-qwen3.8-flash-next), not reviewed. Back-translation spot check chrF 78. Back-translation turned \"Every model behind one key.\" into \"All models below one key.\".",
+    "partial": "13276 of 13510 keys, those added for hanzo.ai’s pages, @hanzo/app, @hanzo/ui and the shell on 2026-10-30, read English until the next run reaches this locale."
+  },
+  "sv": {
+    "partial": "12168 of 13510 keys, those added for hanzo.ai’s pages, @hanzo/app, @hanzo/ui and the shell on 2026-10-30, read English until the next run reaches this locale."
+  },
+  "sw": {
+    "partial": "12168 of 13510 keys, those added for hanzo.ai’s pages, @hanzo/app, @hanzo/ui and the shell on 2026-10-30, read English until the next run reaches this locale."
+  },
+  "ta": {
+    "partial": "12168 of 13510 keys, those added for hanzo.ai’s pages, @hanzo/app, @hanzo/ui and the shell on 2026-10-30, read English until the next run reaches this locale."
+  },
+  "te": {
+    "partial": "12168 of 13510 keys, those added for hanzo.ai’s pages, @hanzo/app, @hanzo/ui and the shell on 2026-10-30, read English until the next run reaches this locale."
+  },
+  "tg": {
+    "why": "Machine-translated (halogen-qwen3.8-flash-next), not reviewed. Back-translation spot check chrF 82. \"Gen 1\" kept as written; Persian-script interference not checked.",
+    "partial": "13276 of 13510 keys, those added for hanzo.ai’s pages, @hanzo/app, @hanzo/ui and the shell on 2026-10-30, read English until the next run reaches this locale."
+  },
+  "th": {
+    "partial": "12168 of 13510 keys, those added for hanzo.ai’s pages, @hanzo/app, @hanzo/ui and the shell on 2026-10-30, read English until the next run reaches this locale."
+  },
+  "tk": {
+    "why": "Machine-translated (halogen-qwen3.8-flash-next), not reviewed. Back-translation spot check chrF 79. Back-translation turned \"Every model behind one key.\" into \"All models with one key.\".",
+    "partial": "13276 of 13510 keys, those added for hanzo.ai’s pages, @hanzo/app, @hanzo/ui and the shell on 2026-10-30, read English until the next run reaches this locale."
+  },
+  "tr": {
+    "partial": "12168 of 13510 keys, those added for hanzo.ai’s pages, @hanzo/app, @hanzo/ui and the shell on 2026-10-30, read English until the next run reaches this locale."
+  },
+  "ug": {
+    "why": "Machine-translated (halogen-qwen3.8-flash-next), not reviewed. Back-translation spot check chrF 78. Long technical sentences lose precision in back-translation.",
+    "partial": "13276 of 13510 keys, those added for hanzo.ai’s pages, @hanzo/app, @hanzo/ui and the shell on 2026-10-30, read English until the next run reaches this locale."
+  },
+  "uk": {
+    "partial": "12168 of 13510 keys, those added for hanzo.ai’s pages, @hanzo/app, @hanzo/ui and the shell on 2026-10-30, read English until the next run reaches this locale."
+  },
+  "ur": {
+    "partial": "12168 of 13510 keys, those added for hanzo.ai’s pages, @hanzo/app, @hanzo/ui and the shell on 2026-10-30, read English until the next run reaches this locale."
+  },
+  "uz": {
+    "why": "Machine-translated (halogen-qwen3.8-flash-next), not reviewed. Back-translation spot check chrF 82. Back-translation turned \"Start from a template\" into \"Select a template to get started\".",
+    "partial": "13276 of 13510 keys, those added for hanzo.ai’s pages, @hanzo/app, @hanzo/ui and the shell on 2026-10-30, read English until the next run reaches this locale."
+  },
+  "vi": {
+    "partial": "12168 of 13510 keys, those added for hanzo.ai’s pages, @hanzo/app, @hanzo/ui and the shell on 2026-10-30, read English until the next run reaches this locale."
+  },
+  "zh-HK": {
+    "partial": "12168 of 13510 keys, those added for hanzo.ai’s pages, @hanzo/app, @hanzo/ui and the shell on 2026-10-30, read English until the next run reaches this locale."
+  },
+  "zh-Hans": {
+    "partial": "12168 of 13510 keys, those added for hanzo.ai’s pages, @hanzo/app, @hanzo/ui and the shell on 2026-10-30, read English until the next run reaches this locale."
+  },
+  "zh-Hant": {
+    "partial": "12168 of 13510 keys, those added for hanzo.ai’s pages, @hanzo/app, @hanzo/ui and the shell on 2026-10-30, read English until the next run reaches this locale."
   }
 }

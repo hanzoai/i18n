@@ -9,6 +9,9 @@ const terms = JSON.parse(readFileSync(new URL('../terms.json', import.meta.url),
 test('a protected name stays Latin; inflection after it is allowed', () => {
   assert.deepEqual(faults('hi-IN', 'Hand Hanzo Dev a task', 'हैंज़ो डेव को काम दें', terms), ['names:Hanzo+Dev'])
   assert.deepEqual(faults('fi', 'Examples and recipes for Kai decisions.', 'Esimerkkejä Kain päätöksiin.', terms), [])
+  // A name ending a hyphenated word is the word's: "Next-Gen" is no Gen.
+  assert.deepEqual(faults('fr-FR', 'Next-Gen Commerce', 'Commerce nouvelle génération', terms), [])
+  assert.deepEqual(faults('fr-FR', 'Hanzo Gen runs agents', 'Hanzo exécute des agents', terms), ['names:Gen'])
   assert.deepEqual(faults('ar', "Hanzo's cloud", 'سحابة', terms), ['names:Hanzo'])
 })
 

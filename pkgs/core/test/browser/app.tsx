@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { createRoot } from 'react-dom/client'
 
 import { I18nProvider, LanguagePicker, useI18n } from '../../src/react.ts'
@@ -28,7 +29,37 @@ function App({ review }: { review: boolean }) {
 const params = new URL(location.href).searchParams
 const user = params.get('user')
 
+/** Arabic in two parts, as a host that serves a catalog by section hands it over. */
+const PARTS: Record<string, Record<string, string>> = {
+  home: { Welcome: 'مرحبًا' },
+  settings: { Settings: 'الإعدادات' },
+}
+const asked: string[] = []
+;(window as unknown as { asked: string[] }).asked = asked
+
+function Scoped() {
+  const [scope, setScope] = useState('home')
+  return (
+    <I18nProvider
+      userId="scoped"
+      scope={scope}
+      loadCatalog={async (code, part) => {
+        asked.push(`${code}:${part}`)
+        return code === 'ar' ? (PARTS[part ?? ''] ?? {}) : {}
+      }}
+    >
+      <button id="move" onClick={() => setScope(scope === 'home' ? 'settings' : 'home')}>
+        move
+      </button>
+      <App review={false} />
+    </I18nProvider>
+  )
+}
+
 createRoot(document.getElementById('root')!).render(
+  params.has('scoped') ? (
+    <Scoped />
+  ) : (
   <I18nProvider
     userId={user === 'guest' ? null : user ?? 'alice'}
     loadCatalog={async (code) => {
@@ -51,5 +82,6 @@ createRoot(document.getElementById('root')!).render(
     }}
   >
     <App review={params.has('review')} />
-  </I18nProvider>,
+  </I18nProvider>
+  ),
 )

@@ -36,7 +36,8 @@ export function english(
     ts.forEachChild(node, visit)
   }
   visit(tree)
-  return found
+  // `t(open ? 'Close' : '')` asks for 'Close' and for nothing: an empty arm is no copy.
+  return found.filter((key) => key.trim() !== '')
 }
 
 /** `t` in `t(…)`, `i18n.t(…)` and `this.t(…)`. */

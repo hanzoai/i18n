@@ -87,3 +87,13 @@ export const loaders: Readonly<Record<string, () => Promise<Catalog>>> = {
   'uz': () => import('../catalogs/uz.json', { with: { type: 'json' } }),
   'vi': () => import('../catalogs/vi.json', { with: { type: 'json' } }),
 }
+
+/**
+ * `loadCatalog` for I18nProvider from the catalogs bundled with this package: one lazy
+ * chunk per locale, the whole catalog. A host that serves catalogs itself (in parts,
+ * from a CDN) passes its own and never imports this, so its build carries none of them.
+ */
+export const bundled = (code: string): Promise<Catalog> => {
+  const load = loaders[code]
+  return load ? load() : Promise.reject(new Error(`no catalog for ${code}`))
+}

@@ -16,7 +16,7 @@ import {
 import { loadAccountLocale, saveAccountLocale, type Account } from './account.ts'
 import { faces } from './faces.ts'
 import { format, type Format } from './format.ts'
-import { loaders, type Catalog } from './loaders.ts'
+import type { Catalog } from './loaders.ts'
 import { DEFAULT_LOCALE, OFFERED, locales } from './locales.ts'
 import { PAINTED, isolate, pieces, preferenceKey, translate } from './message.ts'
 import { direction, resolve } from './resolve.ts'
@@ -61,8 +61,20 @@ export interface I18nProviderProps {
   initialLocale?: string
   /** Hanzo IAM, to load and save the choice on the account across devices. */
   account?: Account
-  /** Replaces the bundled catalogs, e.g. to serve them from a CDN. */
-  loadCatalog?: (code: string) => Promise<Catalog>
+  /**
+   * Where the words come from: `bundled` (`@hanzo/i18n/bundled`, one lazy chunk per
+   * locale), or the host's own, e.g. from a CDN or in parts. Asked with the current
+   * `scope` when there is one. Required, so a host that serves its own catalogs
+   * bundles none of this package's.
+   */
+  loadCatalog: (code: string, scope?: string) => Promise<Catalog>
+  /**
+   * What the page draws, for a host that serves a catalog in parts (one per section
+   * of a site, say) rather than whole. When it changes, `loadCatalog(locale, scope)`
+   * is asked once for that language and what it answers joins what is shown, so a
+   * page reads only its part and a move to another section fetches that one part.
+   */
+  scope?: string
 }
 
 const Context = createContext<I18n>({
@@ -83,10 +95,8 @@ export function I18nProvider({
   userId,
   initialLocale = DEFAULT_LOCALE,
   account,
-  loadCatalog = (code) => {
-    const load = loaders[code]
-    return load ? load() : Promise.reject(new Error(`no catalog for ${code}`))
-  },
+  loadCatalog,
+  scope,
 }: I18nProviderProps): ReactNode {
   const [state, setState] = useState<{ locale: string; messages: Record<string, string> }>({
     locale: resolve(initialLocale),
@@ -98,6 +108,10 @@ export function I18nProvider({
   const writes = useRef<Promise<void>>(Promise.resolve())
   const identity = useRef(userId)
   identity.current = userId
+  const area = useRef(scope)
+  area.current = scope
+  /** The scopes asked for the language shown, so each is fetched once per language. */
+  const asked = useRef<{ locale: string; scopes: Set<string | undefined> }>({ locale: DEFAULT_LOCALE, scopes: new Set() })
 
   /**
    * Load and show `value`. `save` says where the choice is kept: `account` (a person
@@ -111,17 +125,19 @@ export function I18nProvider({
     setLoading(true)
     setError(null)
     try {
-      const loaded: Catalog = locale === DEFAULT_LOCALE ? {} : await loadCatalog(locale)
+      const part = area.current
+      const loaded: Catalog = locale === DEFAULT_LOCALE ? {} : await loadCatalog(locale, part)
       if (sequence.current !== request || identity.current !== owner) {
         return
       }
-      const messages = ('default' in loaded ? loaded.default : loaded) as Record<string, string>
+      const messages = unwrap(loaded)
       // The words wait for the face they are set in (./faces.ts), so a script the
       // page's family lacks appears once, in its companion, and nothing moves after.
       await faces(messages)
       if (sequence.current !== request || identity.current !== owner) {
         return
       }
+      asked.current = { locale, scopes: new Set([part]) }
       setState({ locale, messages })
       document.documentElement.lang = locale
       document.documentElement.dir = direction(locale)
@@ -200,6 +216,23 @@ export function I18nProvider({
     return () => stop.abort()
   }, [userId, account?.base, account?.token])
 
+  // A move to another part of the site: fetch that part once for the language shown and
+  // add it to what is shown. A failure leaves the English, as a missing key does.
+  useEffect(() => {
+    const { locale } = state
+    if (locale === DEFAULT_LOCALE || asked.current.locale !== locale || asked.current.scopes.has(scope)) {
+      return
+    }
+    asked.current.scopes.add(scope)
+    loadCatalog(locale, scope)
+      .then(async (loaded) => {
+        const more = unwrap(loaded)
+        await faces(more)
+        setState((shown) => (shown.locale === locale ? { locale, messages: { ...shown.messages, ...more } } : shown))
+      })
+      .catch(() => asked.current.locale === locale && asked.current.scopes.delete(scope))
+  }, [scope, state.locale])
+
   const formats = useMemo(() => format(state.locale), [state.locale])
   const value = useMemo<I18n>(
     () => ({
@@ -215,6 +248,9 @@ export function I18nProvider({
   )
   return createElement(Context.Provider, { value }, children)
 }
+
+/** A catalog as a loader hands it back: the messages, or a module whose default they are. */
+const unwrap = (loaded: Catalog) => ('default' in loaded ? loaded.default : loaded) as Record<string, string>
 
 export function useI18n(): I18n {
   return useContext(Context)

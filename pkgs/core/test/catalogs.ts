@@ -30,7 +30,7 @@ test('the English catalog is its own source', () => {
   }
 })
 
-/** review.json: a locale's reason, or `{ why, partial }` for one that ships with keys still to translate. */
+/** review.json: a locale's reason, `{ why, partial }` for one under review that ships with keys still to translate, or `{ partial }` for an offered one. */
 const review = JSON.parse(readFileSync(`${dir}/review.json`, 'utf8')) as Record<string, unknown>
 const partial = new Set(
   Object.entries(review)
@@ -52,18 +52,21 @@ test('every lazy loader resolves a catalog holding every source message, but wha
 
 test('the review list is catalogs/review.json: shipped locales, each with its reason', () => {
   const file = review
-  assert.deepEqual([...REVIEW].sort(), Object.keys(file).sort(), 'run scripts/sync-catalogs.sh')
-  for (const code of REVIEW) {
+  // Under review: a bare reason, or { why, partial }. An entry with only `partial` is an
+  // offered locale a generation run has not reached every key of: offered, read in English
+  // where it lacks one, and not under review.
+  const waits = (entry: unknown) => typeof entry === 'string' || typeof (entry as { why?: unknown } | null)?.why === 'string'
+  assert.deepEqual([...REVIEW].sort(), Object.keys(file).filter((code) => waits(file[code])).sort(), 'run scripts/sync-catalogs.sh')
+  for (const [code, entry] of Object.entries(file)) {
     assert.ok(SUPPORTED_LOCALES.includes(code as never), code)
     assert.notEqual(code, DEFAULT_LOCALE)
-    const entry = file[code]
-    // A bare reason, or { why, partial }: a locale that ships before every key reached it says so, and why.
-    const why = typeof entry === 'string' ? entry : (entry as { why?: unknown } | null)?.why
-    assert.ok(typeof why === 'string' && why.trim(), `${code} names why it waits`)
-    if (typeof entry !== 'string') {
-      const said = (entry as { partial?: unknown }).partial
-      assert.ok(typeof said === 'string' && said.trim(), `${code}: an entry that is not a bare reason says what it lacks`)
+    if (typeof entry === 'string') {
+      assert.ok(entry.trim(), `${code} names why it waits`)
+      continue
     }
+    const { why, partial: said } = (entry ?? {}) as { why?: unknown; partial?: unknown }
+    assert.ok(why === undefined || (typeof why === 'string' && why.trim()), `${code} names why it waits`)
+    assert.ok(typeof said === 'string' && said.trim(), `${code}: an entry that is not a bare reason says what it lacks`)
   }
   assert.deepEqual(
     locales.filter((l) => l.review).map((l) => l.code).sort(),

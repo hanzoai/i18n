@@ -83,13 +83,17 @@ function required(source: string, keep: readonly string[]): string[] {
   return [...new Set(source.replace(/\b\w+'s\s+$/, '').match(names) ?? [])]
 }
 
-/** Longest first, so `Claude Code` is one name rather than `Claude` and a stray word. */
+/**
+ * Longest first, so `Claude Code` is one name rather than `Claude` and a stray word.
+ * A name ending a hyphenated word is that word's, not the product: "Next-Gen
+ * Commerce" names no Gen, and a translation that says "next generation" keeps it.
+ */
 function alternation(names: readonly string[]): RegExp | undefined {
   if (names.length === 0) {
     return undefined
   }
   const sorted = [...names].sort((a, b) => b.length - a.length).map(escape)
-  return new RegExp(`\\b(?:${sorted.join('|')})\\b`, 'g')
+  return new RegExp(`(?<![\\w-])(?:${sorted.join('|')})\\b`, 'g')
 }
 
 function escape(text: string): string {

@@ -5,7 +5,7 @@ package is `pkgs/core/README.md` (what npm shows); this file is how it is built 
 
 | path | what | publishes | tests |
 |---|---|---|---|
-| `pkgs/core` → **`@hanzo/i18n`** | `.`: the 79-locale registry (`locales`, `SUPPORTED_LOCALES`), `resolve`, `direction`, `slots`/`parity`, `faults`, file layout, `translate`, `english` and `Say` (a plain module's `t`: `t: Say = english` last), `format`. `./react`: `I18nProvider`, `LanguagePicker`, `useI18n` (`t`, `format`), `T`. `./server`: `accept`, `negotiate`, `links`, `alternates`, `sitemap`. `./native`: `detect`, `preferred`. `./boot`: `bootScript`. `./rtl.css`. `./catalogs/*` | yes, by `.github/workflows/publish.yml` | 109 + `test:browser` |
+| `pkgs/core` → **`@hanzo/i18n`** | `.`: the 79-locale registry (`locales`, `SUPPORTED_LOCALES`), `resolve`, `direction`, `slots`/`parity`, `faults`, file layout, `translate`, `english` and `Say` (a plain module's `t`: `t: Say = english` last), `format`. `./react`: `I18nProvider` (`loadCatalog` required, `scope`), `LanguagePicker`, `useI18n` (`t`, `format`), `T`. `./bundled`: `bundled`, the shipped catalogs as a `loadCatalog`. `./server`: `accept`, `negotiate`, `links`, `alternates`, `sitemap`. `./native`: `detect`, `preferred`. `./boot`: `bootScript`. `./rtl.css`. `./catalogs/*` | yes, by `.github/workflows/publish.yml` | 109 + `test:browser` |
 | `tools/extract` | scan code → missing keys into `source/<ns>/en-US.json`, or English keys (`t`, `phrase`, `<T>`) into a flat catalog | private | 29 |
 | `tools/translate` | fill what a locale is missing: `/v1/translate`, chat, a local model, or MADLAD | private | 29 |
 | `tools/validate` | the gate: presence, slots, protected names, script, Chinese variant | private | 22 |
@@ -18,7 +18,7 @@ separate and private: they are run from this checkout, not installed.
 ## Content lives here now
 
 This repo was once "toolkit only, no content". It now ships Hanzo's own interface
-catalogs in `pkgs/core/catalogs/` — 1,443 English-source keys × 79 locales, plus
+catalogs in `pkgs/core/catalogs/` — 13,510 English-source keys × 79 locales (0.6.0), plus
 `provenance.json` and `review.json` — because `@hanzo/rooms` and hanzo.ai consume them as
 one dependency, lazily. That is a deliberate exception to the old rule, for Hanzo's
 shared interface only. Every other product keeps its strings in its own
@@ -127,12 +127,22 @@ TypeScript and esbuild keep a line break an entity wrote and trim every Unicode 
 
 ```sh
 node --experimental-strip-types tools/extract/src/cli.ts --catalogs pkgs/core/catalogs --prune \
-  --code pkgs/core/src --code <rooms>/src --code <hanzo.ai>/components --code <hanzo.ai>/app --code <hanzo.ai>/lib
+  --code pkgs/core/src \
+  --code <hanzoai/app at the release hanzo.ai ships>/pkg/{app,mod,glass}/src \
+  --code <hanzoai/app main>/pkg/{app,mod,glass}/src \
+  --code <hanzo.ai>/node_modules/@hanzo/ui/dist --code <hanzo.ai>/node_modules/@hanzogui/shell/dist \
+  --code <hanzo.ai>/{components,app,lib,hooks,data}
 ```
 
 `--prune` drops what nobody asks for any more from en-US.json and every locale, so it is
-run over EVERY reader of the catalog at once (this package's picker, `@hanzo/rooms`,
-hanzo.ai), never one. Then translate fills what each locale lacks, and validate gates it.
+run over EVERY reader of the catalog at once, never one: this package's picker,
+@hanzo/app (both the release a host ships and main, or the keys only one of them asks
+for are dropped), hanzo.ai, and every package hanzo.ai ships that calls `t()` itself
+(@hanzo/ui's composer and model menus, @hanzogui/shell's palette and account menu). Those
+two are read from the dist hanzo.ai's lockfile installs, the version actually shipped; a
+package's `t('…')` survives its compiler as a call with a literal. Then translate fills
+what each locale lacks, and validate gates it. An empty arm of a choice
+(`t(open ? 'Close' : '')`) is not a key.
 
 ## `t`: one sentence, its arguments isolated
 
@@ -171,7 +181,17 @@ writing "Invalid Date" into a page.
 
 - **Loading.** `src/loaders.ts` holds one literal `import('../catalogs/<code>.json', { with:
   { type: 'json' } })` per locale, so a bundler emits one chunk per catalog (78 + entry;
-  `scripts/verify-package.sh` counts them) and Node imports them natively. The relative path is the same from `src/` and
+  `scripts/verify-package.sh` counts them) and Node imports them natively. They are reached
+  only through `./bundled` (`bundled`, a `loadCatalog`). `I18nProvider` takes `loadCatalog`
+  as a required prop and never names the loaders: while it defaulted to them, every host's
+  build carried all 78 chunks whether it loaded them or not (hanzo.ai's export held 7.8 MB
+  of them at 1,443 keys, and would have held some 130 MB at 12,900).
+- **In parts.** A whole catalog is every key of every reader, and a page draws a few
+  hundred. A host that serves catalogs itself passes `loadCatalog(code, scope)` and
+  `scope`, the part of the site shown; the provider asks for that part with the language
+  and for each new part once on a move, joining the answer to what is shown (`test:browser`
+  counts the asks). hanzo.ai's parts are its sections, read off its own export
+  (`scripts/catalogs.mjs` there). The relative path is the same from `src/` and
   `dist/`. `src/json.d.ts` types them instead of `resolveJsonModule`, which would pull the
   JSON into the program outside `rootDir`.
 - **Review.** `catalogs/review.json` is `{ "<locale>": "<why it waits>" }` (34 locales, below).
@@ -179,13 +199,16 @@ writing "Invalid Date" into a page.
   loads by code, so a person who chose one keeps it, but `LanguagePicker` does not offer it
   (unless the host passes `review`) and a browser language does not select it. A native
   reader clears one by deleting its entry and syncing.
-- **Partial.** A review locale may ship before a run has reached every key, and says so in
-  its own entry: `{ "why": "<why it waits>", "partial": "<what it lacks, and why>" }`.
-  `validate` (`partials` in tools/validate) counts such a locale's missing keys in one review
-  line instead of failing on each, and still checks every key it has; `test/catalogs.ts` lets
-  its loader lack them. A missing key renders English (`translate`). Only a review locale can
-  be partial, so every offered locale is complete; the next run that fills one turns its
-  entry back into the bare reason. 0.5.1 shipped 33 review locales partial: the catalog
+- **Partial.** A locale may ship before a run has reached every key, and says so in its own
+  entry: `{ "why": "<why it waits>", "partial": "<what it lacks, and why>" }` for a review
+  locale, `{ "partial": "…" }` alone for an offered one (still offered; `sync-catalogs.sh`
+  writes into `REVIEW` only the entries with a `why`). `validate` (`partials` in
+  tools/validate) counts such a locale's missing keys in one review line instead of failing
+  on each, and still checks every key it has; `test/catalogs.ts` lets its loader lack them. A
+  missing key renders English (`translate`). The run that fills one turns its entry back into
+  the bare reason, or removes it for an offered locale. Offered locales became partial-able
+  when the catalog grew past what one local machine translates in a day (see the 0.6.0
+  run): the alternative was to drop them from the picker while they filled. 0.5.1 shipped 33 review locales partial: the catalog
   grew from 425 to 1,443 keys for hanzo.ai's landing, menus, sign-in and app, and Arabic
   and the offered locales went first.
 - **Sync.** Catalogs are generated outside the repo (GPU runs) and copied in by ONE script:
@@ -248,7 +271,10 @@ MADLAD_PYTHON=.venv/bin/python node tools/translate/dist/cli.js --catalogs pkgs/
   --weights Nextcloud-AI/madlad400-3b-mt-ct2-int8@aa32bbdeba7880eff2096ec044cb155a340a9400/model.bin
 ```
 
-Only missing keys are sent, in groups of ≤100 keys / 8 KB. `--jobs n` is how many
+Only missing keys are sent, in groups of ≤100 keys / 8 KB. Each group is written as it
+answers (the locale file and that run's provenance entry, whose `keys` grow), so a run that
+stops keeps every group that came back; before 0.6.0 a locale was written only when all its
+groups had answered, and stopping a run lost hours. `--jobs n` is how many
 requests are in flight: every group of every locale joins one line in locale order, so a
 server with n slots answers one locale's groups together and that locale is written first
 (provenance is saved after each, one save at a time). A chat model is sent the strings
@@ -264,6 +290,20 @@ and are restored after; `tools/translate/madlad.py` is its worker.
 `/v1/translate` gets the protected names as its glossary; an entry it answers with `error`
 is a refusal. The local mode sends `chat_template_kwargs.reasoning_effort`
 (`TRANSLATION_REASONING`, default `low`) and strips a leading `<think>` block.
+
+**The 0.6.0 run** (2026-10-30): hanzo.ai's language PRs (pages c–z, lib data, the app's
+rooms, settings) took the catalog from 1,443 keys to 13,510 (12,168 new, 101 pruned),
+plus @hanzo/ui's 66 and the shell's 358. Measured throughput on local hardware, the job's
+whole cost: Jais 3 on dgx (llama.cpp, 12 slots at 8,192 tokens, q8_0 KV) ran ~2.3–3 tokens
+a second a slot, 28–35 together, ~100–170 keys a minute, about 2 h 10 min for Arabic's
+12,168 new keys; halogen on evo, raised from 4 to 12 slots for the run with a runtime
+systemd drop-in (`/run`, gone on reboot), ~5.4 tokens a second a slot, 55–72 together,
+~140–170 keys a minute, 1 h 25 min for French. At that rate the 40 offered non-Arabic
+locales are some 55 hours of evo and the four Arabic variants some 9 of dgx, so 0.6.0
+ships what was finished and says the rest per locale: Arabic (19 keys short: protected
+names Jais would not keep in Latin), French complete, every other locale `partial`, the
+offered ones still offered. MADLAD-400 3B on dgx's CPU runs Burmese beside them. Each
+release after this one adds the locales the runs have finished.
 
 **The 0.5.1 run** (2026-10-22): the catalog went from 425 keys to 1,443, 1,161 of them new
 for hanzo.ai's landing, menus, sign-in and app (@hanzo/rooms), and 143 fragments no code

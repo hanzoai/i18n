@@ -12,9 +12,10 @@ pnpm add @hanzo/i18n
 
 ```tsx
 import { I18nProvider, LanguagePicker, useI18n } from '@hanzo/i18n/react'
+import { bundled } from '@hanzo/i18n/bundled'
 import '@hanzo/i18n/rtl.css'
 
-<I18nProvider userId={subject} account={{ base: 'https://hanzo.id', token }}>
+<I18nProvider loadCatalog={bundled} userId={subject} account={{ base: 'https://hanzo.id', token }}>
   <LanguagePicker />
   <App />
 </I18nProvider>
@@ -42,6 +43,16 @@ or API responses through it. Rendering never calls a model.
   a native reader. They load by code, so a person who chose one keeps it, but the
   picker does not offer them and a browser language does not select them.
   `<LanguagePicker review />` offers them.
+- **Partial.** A locale `catalogs/review.json` marks `partial` ships before a run has
+  reached every key; a key it lacks reads English. `{ "why", "partial" }` is a review
+  locale; `{ "partial" }` alone is an offered one, still offered.
+- **Where the words come from.** `loadCatalog` is required. `bundled`
+  (`@hanzo/i18n/bundled`) loads the catalog this package ships, one lazy chunk per
+  locale, whole. A whole catalog is every key of every reader, so a host that serves
+  its catalogs in parts passes its own `loadCatalog(code, scope)` and `scope` (the part
+  of the site shown): the provider asks for that part with the language, and for each
+  new part once on a move, adding what it answers to what is shown. Such a host never
+  imports `./bundled`, so its build carries no catalog chunk.
 - **Right-to-left.** Every locale in Arabic or Hebrew script (Arabic and its regional
   variants, Persian, Dari, Hebrew, Urdu, Pashto, Central Kurdish, Sindhi, Uyghur,
   Punjabi in Shahmukhi) sets `<html lang dir="rtl">`. Lay out with logical properties

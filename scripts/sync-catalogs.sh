@@ -32,7 +32,11 @@ node --input-type=module -e '
   const [file, out] = process.argv.slice(1)
   const review = JSON.parse(readFileSync(file, "utf8"))
   if (!review || typeof review !== "object" || Array.isArray(review)) throw new Error(`${file}: expected { "<locale>": "<reason>" }`)
-  const codes = Object.keys(review).sort().map((c) => `\x27${c}\x27`).join(", ")
+  // Under review: a bare reason, or an entry with `why`. An entry with only `partial`
+  // is an offered locale a run has not finished: it stays offered and reads English
+  // where it lacks a key.
+  const waits = (entry) => typeof entry === "string" || (typeof entry?.why === "string" && entry.why.trim() !== "")
+  const codes = Object.keys(review).filter((c) => waits(review[c])).sort().map((c) => `\x27${c}\x27`).join(", ")
   writeFileSync(out, `// Written by scripts/sync-catalogs.sh from catalogs/review.json; test/catalogs.ts holds the two equal.\nexport const REVIEW: readonly string[] = [${codes}]\n`)
 ' "$pkg/catalogs/review.json" "$pkg/src/review.ts"
 

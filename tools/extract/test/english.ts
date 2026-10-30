@@ -34,3 +34,8 @@ test('the catalog adds what is found; pruning keeps only what is found', () => {
   assert.deepEqual(catalogue({ Old: 'Old', Kept: 'Kept' }, ['Kept', 'New'], false), { Old: 'Old', Kept: 'Kept', New: 'New' })
   assert.deepEqual(catalogue({ Old: 'Old', Kept: 'Kept' }, ['Kept', 'New'], true), { Kept: 'Kept', New: 'New' })
 })
+
+test('an empty arm of a choice asks for nothing', () => {
+  assert.deepEqual(english(`t(open ? 'Close' : '')`, 'a.ts'), ['Close'])
+  assert.deepEqual(english(`phrase(' ')`, 'a.ts'), [])
+})
