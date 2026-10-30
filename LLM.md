@@ -69,6 +69,18 @@ hydration matches, and its first choice is the script's, so the page keeps one d
 dir>`: `rtl` while the parser is in the head and before `first-paint`, never turned back,
 no mismatch (without `suppressHydrationWarning`, React reports one).
 
+## The words wait for their face
+
+A script the page's family lacks (Arabic under Zen) is drawn by a companion
+`@font-face` with a `unicode-range`, fetched only once one of its letters is laid out.
+The provider's `select` therefore awaits `faces(messages)` (`src/faces.ts`) before it
+shows a catalog: the body's families in order, `document.fonts.load` with the catalog's
+letters, stopping at the first family that has a face for them. Otherwise the words are
+laid out invisibly in the platform's metrics for the face's block period and every box
+after them moves when it lands. Capped at 3 s, the block period, so a face that never
+comes holds the words no longer than it would have hidden them; English (no catalog) and
+a script the first face already draws cost nothing. `test/faces.ts`.
+
 ## Slots and faults: one definition, asked by both translator and gate
 
 `slots` reads i18next `{{name}}` (bare name) and this package's `{name}` (reported with its
