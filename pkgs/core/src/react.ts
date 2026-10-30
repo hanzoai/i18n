@@ -8,6 +8,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   type ChangeEvent,
   type CSSProperties,
   type ReactNode,
@@ -89,6 +90,19 @@ const Context = createContext<I18n>({
     throw new Error('Changing language requires I18nProvider')
   },
 })
+
+/**
+ * What the server drew with: the provider's starting locale and no catalog, the words
+ * its prerender wrote. A part of the page that hydrates late (a section in a chunk of
+ * its own, a Suspense boundary streamed in) hydrates after the provider may have
+ * loaded the reader's catalog; reading that, it would draw Arabic where the HTML holds
+ * English, and React throws the tree away and draws it again on the client.
+ */
+const Served = createContext<I18n | null>(null)
+
+const quiet = () => () => {}
+const client = () => true
+const server = () => false
 
 export function I18nProvider({
   children,
@@ -234,6 +248,21 @@ export function I18nProvider({
   }, [scope, state.locale])
 
   const formats = useMemo(() => format(state.locale), [state.locale])
+  // The starting locale, as the prerender drew it (`Served`), and nothing loaded.
+  const first = useRef(resolve(initialLocale)).current
+  const served = useMemo<I18n>(
+    () => ({
+      locale: first,
+      dir: direction(first),
+      messages: {},
+      loading: false,
+      error: null,
+      setLocale: select,
+      t: say({}, direction(first) === 'rtl'),
+      format: format(first),
+    }),
+    [first],
+  )
   const value = useMemo<I18n>(
     () => ({
       ...state,
@@ -246,14 +275,25 @@ export function I18nProvider({
     }),
     [state, formats, loading, error, userId, account?.base, account?.token],
   )
-  return createElement(Context.Provider, { value }, children)
+  return createElement(Served.Provider, { value: served }, createElement(Context.Provider, { value }, children))
 }
 
 /** A catalog as a loader hands it back: the messages, or a module whose default they are. */
 const unwrap = (loaded: Catalog) => ('default' in loaded ? loaded.default : loaded) as Record<string, string>
 
+/**
+ * The provider's language, and what the server drew while a part hydrates.
+ *
+ * `useSyncExternalStore` answers its server snapshot while a component hydrates and
+ * the client's after, and re-renders the component when the two differ. So a part that
+ * hydrates after the reader's catalog arrived first draws the words its HTML holds,
+ * then the reader's; a part mounted on the client draws the reader's at once.
+ */
 export function useI18n(): I18n {
-  return useContext(Context)
+  const value = useContext(Context)
+  const served = useContext(Served)
+  const hydrated = useSyncExternalStore(quiet, client, server)
+  return hydrated || !served ? value : served
 }
 
 /** `<T>Settings</T>` — `t` as an element. */

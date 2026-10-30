@@ -289,6 +289,8 @@ try {
   assert.deepEqual(english.marks.filter((m) => m.state === 'loading'), [])
   assert.deepEqual([...new Set(english.marks.filter((m) => m.name === 'dir').map((m) => m.value))], ['ltr'])
   assert.deepEqual(english.ready, { lang: 'en-US', dir: '', text: 'Welcome' })
+  // The picker answers once the page around the late section has hydrated.
+  await first.waitForFunction(() => document.body.dataset.late === 'hydrated')
   await first.locator('select').selectOption('ar')
   await first.getByRole('heading', { name: 'مرحبًا' }).waitFor()
   assert.deepEqual(
@@ -297,6 +299,8 @@ try {
   )
   await first.reload()
   await first.getByRole('heading', { name: 'مرحبًا' }).waitFor()
+  // The section that hydrates after the catalog arrived turns to Arabic too, with no mismatch.
+  await first.locator('p[data-late]', { hasText: 'اللغة' }).waitFor()
   const paint = await early(first, 'ar')
   assert.deepEqual(await firstErrors(), [])
 

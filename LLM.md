@@ -65,6 +65,14 @@ no edit, and `test/boot.ts` runs it against `resolve` for every registry tag and
 of regional, script and alias requests. An account's IAM choice is mirrored into its per-user key and `PAINTED`, so the
 next load opens in it. The provider's first render stays the prerender's English, so
 hydration matches, and its first choice is the script's, so the page keeps one direction.
+A part that hydrates LATER (a section in a chunk of its own with no boundary, holding up
+the nearest one; a Suspense boundary streamed in) hydrates after the reader's catalog
+may have arrived. `useI18n` therefore answers what the server drew (`Served`: the
+provider's starting locale, no catalog) while its component hydrates, through
+`useSyncExternalStore`'s server snapshot, and the reader's words a render later; a
+component mounted on the client gets the reader's at once. Before 0.6.1 hanzo.ai's
+landing in Arabic hydrated a split section's `t()` in Arabic over English HTML, and
+React threw the tree away (#418) and drew it again on the client.
 `test:browser` hydrates a server-rendered page and records every write to `<html lang
 dir>`: `rtl` while the parser is in the head and before `first-paint`, never turned back,
 no mismatch (without `suppressHydrationWarning`, React reports one).
